@@ -1,0 +1,52 @@
+Version 1.01		20-mar-1996
+------------
+	fixed a bug in the random number generator.
+	a_fitness is the only thing used to determine rankings in a
+		population now.
+	a few cosmetic changes to make variable names consistent.
+
+Version 1.0             11-jul-1995
+-----------
+    comments in kernel.
+    text checkpoint files.
+    cleanup of initialization routines and ephem.c.
+    memory-buffered output streams.
+
+Version 0.99b           13-jun-1995
+-------------
+    ADFs.
+    creation of <lilgp.h> header file.
+    growing genspace.
+    tracking of N best individuals.
+    new model for specifying options to selection methods.
+    more object-oriented implementation of operators.
+    mutation operator can use "half_and_half" method, and a depth ramp
+       can be specified instead of a single value.
+    official support for changing breeding parameters mid-run.
+    parameters support continuation lines.  
+    operator parameter specified via a single string.
+    two-boxes and lawnmower sample problems in place of pursuer/evader.
+    function set defined at run-time.
+
+Version 0.95b           10-apr-1995
+-------------
+    Two-phase subpopulation exchange.
+    Single pop problems implemented as one-subpop multipop problems.
+    Fixed "inverse_fitness" naming bug.
+    removal of app_new_best_of_run().
+    addition of app_end_of_evaluation() and app_end_of_breeding().
+    parameter file "preprocessor directives".
+    "output.stt_interval".
+    s-expression pretty printer.
+    GNU (gmake) makefile.
+    pursuer/evader sample problem.
+    
+Version 0.9b            6-feb-1995
+------------
+    first released version.
+
+
+    
+    
+    
+

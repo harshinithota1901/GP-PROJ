@@ -1,0 +1,45 @@
+Hello.
+
+This is lil-gp 1.0, the first official release version of our genetic
+programming system.  Please let us know what you think.  You can send
+email to:
+
+        zongker@isl.cps.msu.edu
+
+Also let us know if you would like to be informed of updates to
+lil-gp.  An up-to-date WWW page on lil-gp can be found at:
+
+        http://isl.cps.msu.edu/GA/software/lil-gp/   
+
+The unpacked distribution should look like this:
+
+     lilgp/
+        app/
+           ant/                <-- artificial ant problem
+           lawnmower/          <-- lawnmower problem (ADFs)
+           multiplexer/        <-- boolean 11-multiplexer problem
+           regression/         <-- symbolic regression problem
+           skeleton/           <-- skeleton code for creating new problems
+           twobox/             <-- two-boxes problem (ADFs)
+        docs/
+        kernel/               
+        params/                <-- sample parameter files
+        aux/                   <-- miscellany
+
+The documentation is now only available in PostScript format.  There
+is also a text file, produced by dvi2tty and fixed up by hand, but the
+PostScript is still better.
+
+Information on what's new in this release and on converting
+applications from the previous version (0.99b) can be found in the
+file "UPGRADE".
+
+The program is copyright (c) 1995 Michigan State University, and
+distributed under the terms of the GNU General Public License, version
+2, a copy of which is in the file "LICENSE" in the distribution.
+
+Share and enjoy.
+
+          - Doug Zongker
+            11 July 1995
+

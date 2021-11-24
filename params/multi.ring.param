@@ -1,0 +1,41 @@
+###
+### multipopulation parameters for 5-ring architecture
+###
+### chooses five worst individuals from each subpop and replaces them
+### with the five best from the previous subpop, in a circle.
+###
+
+multiple.subpops = 5
+multiple.exch_gen = 10     # exchange every 10 generations
+multiple.exchanges = 5
+
+subpop[1].from = 1
+subpop[1].fromselect = best
+subpop[1].to = 2        
+subpop[1].toselect = worst
+subpop[1].count = 5
+
+subpop[2].from = 2
+subpop[2].fromselect = best
+subpop[2].to = 3      
+subpop[2].toselect = worst
+subpop[2].count = 5
+
+subpop[3].from = 3
+subpop[3].fromselect = best
+subpop[3].to = 4        
+subpop[3].toselect = worst
+subpop[3].count = 5
+
+subpop[4].from = 4
+subpop[4].fromselect = best
+subpop[4].to = 5
+subpop[4].toselect = worst
+subpop[4].count = 5
+
+subpop[5].from = 5
+subpop[5].fromselect = best
+subpop[5].to = 1        
+subpop[5].toselect = worst
+subpop[5].count = 5
+

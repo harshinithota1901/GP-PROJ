@@ -1,0 +1,50 @@
+WHAT'S NEW IN LIL-GP 1.0
+========================
+
+The improvements:
+
+Checkpoint files.  The checkpoint code, which was broken in 0.99b, has
+    been completely rewritten.  Checkpoint files are now text files, so
+    you should be able to write programs that read and interpret them
+    more easily.
+
+Kernel comments.  All the kernel code now has comments.  There is also
+    a chapter in the user manual discussing some of the inner workings.
+
+Bug fixes.
+
+    
+0.99b applications require a few mostly trivial changes.  The parameter
+file format has not changed.  Checkpoint files produced by prior
+versions are unusable.
+
+Be sure to check the configuration section at the top of
+kernel/GNUmakefile.kernel for changes.
+
+    
+CONVERTING APPLICATIONS FROM 0.99b TO 1.0
+=========================================
+
+1. app_initialize() now has a single integer parameter -- a flag
+   indicating whether or not the run is starting from a checkpoint.  The
+   regression sample problem, for example, uses this to determine if it
+   needs to generate fitness cases (if they aren't loaded from the
+   checkpoint file).
+
+2. The open filehandle passed to app_write_checkpoint() and
+   app_read_checkpoint() is now in text mode.  Adjust your writing and
+   reading routines accordingly.  To deal with binary data, you can
+   use the functions:
+
+        write_hex_block ( void *p, int n, FILE *f )
+        read_hex_block ( void *p, int n, FILE *f )
+
+   to read and write arbitrary blocks of memory.  It is suggested that
+   you read and write real values as hex data to avoid loss of
+   precision.
+
+3. Read section 6.4 of the manual.  The calling order for some kernel and
+   user initialization functions has changed.  Application code
+   shouldn't depend on this, but you may have to make changes if
+   you're doing something esoteric.
+   

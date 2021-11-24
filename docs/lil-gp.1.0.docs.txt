@@ -1,0 +1,2726 @@
+
+                    lil-gp  1.0  User's  Manual
+
+      Douglas Zongker                          Dr.  Bill Punch
+ Michigan State University                Michigan State University
+  zongker@isl.cps.msu.edu                   punch@isl.cps.msu.edu
+
+                            11 July 1995
+
+Copyright (c) 1995 Michigan State University.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of version 2 of the GNU General Public License as
+published by the Free Software Foundation.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+
+Contents
+
+1    Introduction
+     1.1    Features
+     1.2    Kernel
+     1.3    Specification of Problems
+     1.4    Multiple Populations
+     1.5    Availability
+     1.6    Author
+
+2    Background
+     2.1    Introduction
+     2.2    Defining an Application
+            2.2.1     Closure
+            2.2.2     Examples
+     2.3    Size of Individuals
+     2.4    Fitness
+     2.5    Population Initialization
+     2.6    Selection
+     2.7    Operators
+            2.7.1     Crossover
+            2.7.2     Reproduction
+            2.7.3     Mutation
+     2.8    Automatically Defined Functions (ADFs)
+            2.8.1     ADFs in lil-gp
+
+3    Compiling lil-gp
+     3.1    Preparing the kernel
+     3.2    Building the Sample Problems
+     3.3    Running the Sample Problems
+            3.3.1     Symbolic Regression
+            3.3.2     Artificial Ant
+            3.3.3     Boolean 11-Multiplexer
+            3.3.4     Two-boxes
+            3.3.5     Lawnmower
+     3.4    Compiling Without the Makefile
+
+4    Running lil-gp
+     4.1    Invoking lil-gp
+            4.1.1     Parameter Files
+     4.2    Output Files
+
+5    Parameters
+     5.1    General
+     5.2    Output
+     5.3    Size Limits
+     5.4    Initialization
+     5.5    Selection Methods
+     5.6    Breeding
+     5.7    Operators
+     5.8    Multiple Populations
+
+6    Implementing Problems
+     6.1    Basic Definitions
+     6.2    Functions and Terminals
+            6.2.1     Ephemeral Random Constants
+            6.2.2     Evaluation and Argument Functions
+     6.3    User Callbacks
+            6.3.1     Defining the Function Set(s)
+            6.3.2     Fitness Evaluation Function
+            6.3.3     Custom Output
+            6.3.4     Application Initialization
+            6.3.5     Output Streams
+            6.3.6     Checkpoint Files
+     6.4    Order of Processing
+     6.5    Kernel Considerations
+            6.5.1     Memory Allocation
+            6.5.2     Using Parameters
+
+7    Extending the Kernel
+     7.1    Tree Representation
+     7.2    Selection Methods
+     7.3    Operators
+     7.4    Miscellany
+            7.4.1     Tree Generation Spaces
+            7.4.2     Saved Individuals
+            7.4.3     Ephemeral Random Constants
+
+Chapter 1
+Introduction
+
+lil-gp is a C language system for developing genetic programming
+applications based on the LISP work of John Koza at Stanford
+University.  lil-gp evolves trees whose nodes are C function pointers,
+so tree evaluation is done entirely with complied code.  This gives us
+a manyfold speed increase, allows us to handle much large problems
+(bigger populations, more generations), and is portable to a wide
+variety of platforms.  lil-gp individuals can be composed of multiple
+trees, some of which can evaluate the others to give ADF capabilities.
+This system is the first (that we know of) to support
+multiple-population runs with arbitrary interchange topologies.
+lil-gp has many many options for controlling breeding, and is capable
+of emulating the "Simple LISP Code," given in the appendix of Koza's
+book [3 ], as well as the parameters given in Chapter 7, "Detailed
+Description of Genetic Programming," of that book.
+
+1.1 Features
+
+lil-gp features include:
+
+     o  ease-of-use: options are specified via a flexible format
+        parameter file; command line arguments lend the system to
+        batch operation for long series of runs
+
+     o  supports multiple subpopulations with arbitrary exchange
+        topologies
+
+     o  written in C for portability to a wide variety of Unix/DOS/Mac
+        platforms
+
+     o  7 selection methods: fitness proportionate, greedy
+        overselection, inverse fitness, variable size tournament,
+        random, best, worst
+
+     o  3 genetic operators:  crossover, reproduction, mutation
+
+     o  writes and restarts from checkpoint files
+
+     o  optional node and/or depth limitations on tree size
+
+     o  support for ephemeral random constants
+
+     o  extensive output, including statistics files ready for import
+        into plotting/analysis packages
+
+1.2 Kernel
+
+At lil-gp's core is a tree representation that is compact yet amenable
+to extremely fast evaluation.  Trees are stored as preorder
+expressions, with special symbols inserted to indicate ephemeral
+random constants and conditionally evaluated subtrees.  The
+compactness of the representation allows larger populations to be
+stored in real memory, and the fact that trees are stored as
+contiguous blocks of memory minimizes the impact of paging on
+performance.  The selection methods and genetic operators are
+implemented in an object-oriented fashion, allowing new routines to be
+added easily.  Checkpoint files save the entire state of the run,
+allowing a promising run to be extended, or an interrupted run to be
+completed.  A portable random number generator provides consistent
+results across platforms.
+
+1.3 Specification of Problems
+
+Creating a program in lil-gp is done with a minimum of code writing.
+The use must provide one C function for each GP function and terminal,
+in addition to a fitness evaluation function.  Several callback hooks
+are provided for initialization, customized output, and reading and
+writing user state information to checkpoint files.  Once the user
+code is written, the executable need only be compiled once_all
+parameters and operators are available_even switch between single and
+multiple population runs_just by modifying the parameter file.
+
+1.4 Multiple Populations
+
+lil-gp's support for multiple population problems includes
+user-specified exchange topology and exchange interval.  The parameter
+file specifies how the individuals to be exchanged from each
+subpopulation are selected, and where they go.  The output files
+include statistics on fitness and tree size for each subpopulation and
+for the entire population, both for the current generation and the
+entire run to that point.
+
+1.5 Availability
+
+This is version 1.0 of lil-gp.  The distribution includes
+implementations of three of the problems from Koza's first book
+[3]--the Boolean 11-multiplexer, symbolic regression, and the
+artificial ant.  Two problems from the second book [4] using ADFs are
+also implemented: the two-boxes problem and the lawnmower problem.
+This documentation covers building and running the sample problems,
+writing your own applications, and extending the kernel.
+
+1.6 Author
+
+lil-gp was written by Douglas Zongker, under the direction of Dr.
+Bill Punch.  Mike Boers, Mike Raymer, Dr.  Erik Goodman, and the rest
+of the MSU GARAGe (Genetic Algorithms Research and Applications Group)
+also provided valuable assistance.
+
+Other users of lil-gp have provided suggestions and solutions for
+compatibility problems.  Thanks especially go to Nigel Dodd, Kayvan
+Sylvan, Pierce T. Wetter III, and Glen Ropella.
+
+We want to hear about your experiences with lil-gp.  We welcome your
+questions, comments, sugges- tions, and, of course, bug reports.1
+lil-gp related e-mail can be sent to zongker@isl.cps.msu.edu.  You
+should always be able to find any new information on lil-gp on the
+World Wide Web, at the URL http://isl.cps.msu.edu/GA/software/lil-gp.
+Paper mail may be sent to:
+
+        Computer Science Department
+        A-714 Wells Hall
+        Michigan State University
+        East Lansing, MI 48824
+        USA
+
+1     Well, we don't actually welcome bug reports, but send them anyway.
+
+Chapter 2
+Background
+
+2.1 Introduction
+
+The term Genetic Programming is associated with the work of John Koza
+[3,4].  A genetic program (or GP) is an adaptive learning system
+based on many of the principles of genetic algorithms (GA) as
+described by Holland's Adaptation in Natural and Artificial Systems
+[2] and Goldberg's Genetic Algorithms [1].
+
+There are many similarities between a GA and a GP. Both maintain a
+multitude of independent solutions, represented as individuals in a
+population.  Each runs in a cycle called a generation, in which the
+members of the present population are moved forward, deleted or
+modified into a new population.  Each uses a set of genetic operators
+to modify individuals of the population.  Each uses a selection
+operation to determine which individuals will moved to the next
+generation based on the fitness of those individuals, typically as
+measured by an external evaluation function.
+
+However, there are some important, basic differences as well:
+
+    1.  The structure of representation for a GP is a tree, while most
+        GA applications use a string for representing an individual in
+        the population.
+
+    2.  The nodes of a GP tree are typically functions or terminals,
+        allowing each tree to be inter- preted as a program.  While
+        this could be true of a GA, it typically is not.  It is almost
+        always true of a GP however.
+
+    3.  While the length of a GA string is often fixed, the size of a
+        GP individual is intrinsically variable in length.
+
+In the rest of this section we will lay some of the groundwork for
+what a GP is, and how to work with it.  It will, by no means, be a
+complete exposition on genetic programming.  For such a description,
+we refer you to [3,4].
+
+2.2 Defining an Application
+
+To define a GP application, one must provide both the function and
+terminal nodes from which the GP tree is constructed.  The function
+nodes constitute the internal nodes of the tree, representing a
+function whose arguments are the subtrees below that node.  The
+terminal nodes constitute the terminal nodes of the tree, representing
+non-argument taking functions, or atoms.
+
+Thus a GP constructs a parse tree of a function, and the functions
+contained in that tree take argu- ments from the evaluation of their
+subtrees.  The GP system generally either runs for a prespecified
+number of generations or until a satisfactory soluttion has been
+found.
+
+2.2.1 Closure
+
+Because a GP structure represents a program, and because the program
+can be constructed in ways not necessarily foreseen, the functions
+must designed such that they can take any arguments that could
+possibly be returned by an atom or the evaluation of another GP
+function.  A classic example would be a division operator.  A division
+used in a GP application that has numbers as atoms must be designed so
+that, when given a divisor of 0, division has some default behavior
+that allows the program to continue, rather than signaling an error
+condition and stopping.  Koza calls this the closure property.  One
+must take some care in designing the functions for an application such
+that they are indeed closed under the other functions and atoms.
+
+2.2.2 Examples
+
+There are 5 example programs, taken from GP I [3] and GP II [4],
+distributed with lil-gp.  We define them below to give you a feel for
+GP applications.
+
+Artificial Ant
+
+In the artificial ant problem a grid is provided with a "trail" of
+food pellets distributed over the grid.  Two examples are provided,
+the Los Altos trail (100x100 with 105 food pellets) and the Santa Fe
+trail (32x32 with 89 food pellets).  The GP-program generates a path
+by walking through this map.  It is allowed to run for some number of
+time-steps t (400 in Santa Fe, 3000 in Los Altos),
+
+after which fitness is measured by the number of food pellets "run
+over" by the ant.  Each terminal costs one time step to evaluate, each
+function takes no time.
+
+The function set has 4 members.  The first is if-food-ahead, which has
+two arguments_one to be performed if there is food in front of the
+ant, the other otherwise.  It has the form
+
+      (if-food-ahead  (arg1-true-subtree)  (arg2-false-subtree))
+
+The other 3 functions are progn2 (2 args), progn3 (3 args), and progn4
+(4 args).  Each of these functions simply executes its children from
+left to right.
+
+The terminal set has 3 members: move, which moves the ant one step
+forward.  left, which turns the ant left, and right, turns the ant
+right.
+
+Boolean 11-multiplexer
+
+The Boolean 11-multiplexer problem generates GP-programs/individuals
+that show the same be- havior as a multiplexer with 3 address lines
+and 8 data lines.  That is, given all the possible inputs of an
+11-multiplexer (211 possibilities), determine GP-program fitness based
+on how it compares on all 2048 cases.
+
+The function set has 4 members, which are: and (2 args), or (2 args),
+not (1 arg), and an if function (3 args) that evaluates one or the
+other subtree associated with it based on a condition, as follows:
+
+      (if (arg1-cond) (arg2-true-subtree) (arg3-false-subtree))
+
+The terminal set has 11 members which are: the data lines {d0 : : :d7
+}, and the address lines {a0 : : :a2 }.
+
+Regression
+
+The GP-programs/individuals are designed to generate a function which
+matches a target curve.  The fitness cases are a number of known (x;
+y) pairs on the target curve.  The GP-program is evaluated at each of
+these x-coordinates, and the difference between the y value and the
+value returned by the GP-program, summed over all the cases, is the
+fitness.
+
+The function set has 8 members which are: multiply, protected-divide
+(returns 1 when dividing by 0), add, subtract, sin, cos,
+exponentiation and protected-log (log of 0 is 0, otherwise is the log
+of the absolute value).
+
+The terminal set has one or two members: the input value x, and
+(optionally) ephemeral random constants or ERCs.  An ERC is a special
+terminal whose value is fixed.  When an ERC terminal is generated,
+either during the filling of the initial population or by mutation
+later in the run, a value is attached to that terminal and is
+unchanged by subsequent operations.  In our example, ERC's were
+generated in the range of [-1; 1).
+
+Two-Boxes
+
+Here, the GP attempts to evolve the function l0 h0 w0 - l1 h1 w1 using
+the four elementary arithmetic functions and six terminals, one for
+each variable.  This problem is included because it provides a simple
+introduction to the use of ADFs.
+
+Lawnmower
+
+This problem evolves a control program for a lawnmower, with the goal
+being to mow the grass on every square of a toroidal grid.  The mower
+can move forward (and mow) one square, turn left, or jump any distance
+(relative to its own position and facing direction).  For more
+information, the reader is referred to [4].
+
+2.3 Size of Individuals
+
+The trees evolved by GP can grow very large.  To avoid wasting time
+evaluating a few very large trees, the user can place limits on the
+number of nodes and/or the depth of an individual.  In problems where
+individuals are composed of multiple trees (see Section 2.8.1),
+separate limits can be set for each component tree, as well as for the
+individual as a whole.
+
+Koza's experiments, in both books [3,4], place a maximum depth
+limit of 17 (with no restriction on the number of nodes).
+
+2.4 Fitness
+
+The fitness of each individual in the population is determined by use
+of an evaluation function.  Based on the results of the evaluation
+function, decisions are made with regards to the propagation and
+recombination of an individual into the next generation.  There are a
+number of types of "fitness" that can be used by a GP, which we note
+below:
+
+Raw Fitness, f_r    This measure is some direct measure, based on the
+        application itself, of progress made in solving the problem.
+        More often than not, such a measure is based on some compar-
+        ison to fitness cases.  Much like a training set used in other
+        applications like a neural net, one applies each of the
+        fitness cases to the GP-program being evaluated, and the sum
+        performance of that GP-program on all the cases is the raw
+        fitness.
+
+        For the three of the lil-gp test cases, raw fitness is
+	measured as follows:
+
+        Regression   Raw fitness is based on measuring the GP-generated
+               curve against 20 test points on a test curve.  For each
+               GP, if the generated point is within some ffi, (0.01 by
+               default) then it counts as a "hit."  The raw fitness is
+               the sum of the distances between the ideal and
+               GP-calculated values over all the fitness cases.
+
+        Multiplexer   For the "11-multiplexer" (3 address lines, 8 data
+               lines), each of the 2048 cases (211 possible values of
+               the 11 variables) is tested.  Raw fitness is the number
+               of cases that the GP gets correct.
+
+        Artificial Ant   A number of "food" pellets are placed on a map.
+               The GP evolves a control program for the ant, and
+               simulates the repeated execution of it until all the
+               food is consumed or the maximum time limit is reached.
+               Raw fitness is the number of food pellets that the ant
+               hits.
+
+        Two-boxes   Raw fitness is equal to the absolute difference
+               between the correct answer and the GP-answer, summed
+               over 10 fitness cases.  A hit is defined as a fitness
+               case where the GP is within 0.01 of the correct answer.
+
+        Lawnmower   Raw fitness is equal to the number of squares mowed
+               during one execution of the GP-program.
+
+Standardized Fitness, f_s   Standardized fitness simply reverses and/or
+        translates the raw fitness so that all fitnesses are
+        nonnegative, with 0 being for the best possible fitness.
+
+Adjusted Fitness, f_a   This value is calculated from the standardized
+        fitness.  It is defined as follows for each individual i:
+
+                                           1
+                            f_a (i) = ------------
+                                       1 + f_s(i)
+
+        f_a varies from 0 to 1, with 1 being best.  It has the
+        advantage of exaggerating small differences as the fitness of
+        the individuals increases.  Thus, as the solution is nearly
+        complete, better feedback is give to the GP so that the best
+        solutions can be pursued.
+
+Koza and others also refer to a "normalized fitness."  This is simply
+adjusted fitness divided by the sum of all adjusted fitnesses in the
+population.  lil-gp does not use normalized fitness explicitly, but
+instead does implicit normalization of adjusted fitness whereever
+necessary (for instance, in fitness-proportionate selection).
+
+2.5 Population Initialization
+
+The GP-programs are created from random selections from the function
+and terminal set.  How- ever, even though the selections are random
+there are some parameters which control the initial population.  See
+page 33 for a listing of lil-gp parameter names.
+
+There are three methods available for creating these initial random
+structures:
+
+Full    The full method generates only full trees, that is, trees which
+        have all terminal nodes in the same level of the generated
+        program tree.  Another way to say this is that the tree path
+        length from any terminal node to the root of the tree is the
+        same.
+
+Grow    The grow method chooses any node (function or terminal) for the
+        root, then recursively calls itself to generate child trees
+        for any nodes which need them.  It is restricted so that each
+        tree has a maximum depth (if the tree reaches the maximum
+        depth, all further nodes are restricted to be terminals, so
+        growth will cease).
+
+Half-and-half   This method merely chooses the full method 50% of the
+        time and the grow method the other 50%.
+
+All of the generation methods can be specified with a "ramp" of
+initial depth values instead of a single value.  For instance, if the
+ramp is 2 - 5, then 25% of the trees will be generated with depth 2,
+25% will be generated with depth 3, and so on.  Note that the grow
+method (and consequently, the half-and-half method), when called to
+generate a tree of depth n, can produce a tree with actual depth less
+than n.
+
+Half-and-half with a depth ramp is typically the method of choice for
+initialization since it produces a wide variety of tree shapes and
+sizes.
+
+lil-gp checks each individual generated against node and/or depth
+limits (if any have been) set before inserting it into the initial
+population.  It also ensures that no duplicates are present in the
+initial population.
+
+2.6 Selection
+
+A selection method is routines used to select an individual from a
+population.  Currently, selections are used for two purposes in
+lil-gp: selecting the input individuals for a genetic operator (such
+as crossover) to work on, and selecting individuals to undergo
+subpopulation exchange in multiple- population problems.
+
+Three commonly used selection methods are:
+
+Fitness-proportionate selection   This selects an individual based on
+        the proportion of that individual's adjusted fitness in
+        comparison to the total adjusted fitness of the population.
+        When there are n individuals in the population, an individual
+        i will be chosen with probability
+
+                                           f_a (i)
+                            p_i =  -----------------------
+                                     sum j=1..n  f_a (j)
+
+        This is also known as the "roulette wheel" algorithm [1].
+        That is, each individual gets a portion of a roulette wheel
+        based on the above formula (the entire wheel being equal to
+        1).  The wheel is then "spun" to determine which individual is
+        next selected.  Individuals with a large portion of the
+        overall fitness have an increased chance of being selected,
+        but every individual has some chance.
+
+(Greedy) Overselection   Though fitness-proportionate selection is
+        considered good for most applications, it is sometimes
+        desirable to speed up the process.  For large populations (in
+        [3] Koza defines large as over 500), you might use
+        overselection.  Overselection partitions the population into
+        two groups.  In Koza's standard formulation, 80% of the time,
+        individuals are selected from Group I (based on fitness
+        proportionate selection within the group) and 20% of the time
+        from Group II. The partition into two groups can be arbitrary,
+        but Koza has defined this partition based on fitness.  For a
+        population of 1000, the top individuals accounting for 32% of
+        the total adjusted fitness go into the first group, the rest
+        into the second.  For popu- lations of 2000, the split occurs
+        at 16% of the adjusted fitness, for populations of 4000, the
+        split occurs at 8% and so on.  The particular percentages are
+        parameters in lil-gp and can be altered.
+
+        Overselection results in much higher selection pressures on
+        the population than fitness proportionate selection.  While
+        such pressure often results in local minima solutions in GAs,
+        Koza does not report such results in GPs.
+
+Tournament Selection   Tournament selection was originated in GAs to
+        avoid overselection pres- sure on a population that could
+        cause premature convergence.  In tournament selection n
+        individuals are chosen in a uniform random manner, then the
+        best (by fitness) of those n individuals is selected.  n is
+        the tournament size.  Koza uses this type of selection, with a
+        tournament size of 7, for most of the runs given in GP II [4].
+
+lil-gp provides these and 4 other selection methods.  See page 33 for
+more information on these methods in lil-gp.
+
+2.7 Operators
+
+A genetic operator is a method for creating the individuals in each
+generation, usually by recom- bining pieces of individuals in the
+current generation.  Crossover, reproduction, and mutation are the
+three operators implemented in lil-gp.  For information on their use
+in lil-gp, see page 36.
+
+2.7.1 Crossover
+
+Crossover is the main operator in recombining old solutions into new
+and potentially better solutions in both GAs and GPs.  In a GP,
+crossover occurs on trees.  Thus two individuals are selected (using
+whatever selection method is in force) for crossover.  Let's call them
+A and B.  If the individuals in the current problem are composed of
+multiple trees (see Section 2.8.1), then one tree is randomly selected
+from each individual, subject to the restriction that both trees must
+share the same function set.  A node is randomly selected on each
+tree, nA and nB .  Crossover occurs by moving nA and the subtree which
+has nA as its root, to tree B at the position of nB , and at the same
+time moving nB and the subtree which has nB as its root, to A at the
+position of nA .
+
+lil-gp allows mixed selection operations.  That is, certain operators
+such as crossover can use one selection method, while other operators
+use another.  This allows for experiments with mixed strategies.
+lil-gp also allows a different selection method to be used for each
+parent in crossover, and the probability that each crossover point is
+at an internal node versus an external node can be set by the user.
+If the individuals are composed of multiple trees, the probability
+that a given tree within an individual is chosen as the crossover tree
+can be set as well.
+
+It is possible for crossover to create a tree that violates some of
+the node and/or depth maximums, if any are set by the user.  In such
+cases, Koza just reproduces one of the parents into the new population
+in place of the too-large offspring.  lil-gp supports this behavior,
+but can be set to continue picking random crossover points until two
+legal offspring are produced.
+
+2.7.2 Reproduction
+
+The simplest operator, reproduction simply chooses an individual in
+the current population and copies it verbatim into the new population.
+Apart from the choice of selection method, no options are available
+(or needed).
+
+2.7.3 Mutation
+
+Mutation in GP is typically a point mutation.  An individual is
+selected, and a mutation point picked.  The subtree with the mutation
+point as its root is deleted and replaced with a randomly generated
+subtree.
+
+The mutation options in lil-gp are similar to those of crossover:
+method for selecting the individual, probabilities governing the
+location of the mutation point, what to do when mutation produces a
+tree that violates node and/or depth limits.  In addition, the user
+can specify the method and depth ramp for creating the new, random
+subtree.
+
+2.8 Automatically Defined Functions (ADFs)
+
+Koza's second book on genetic programming [4] was devoted mainly to
+exploring the use of au- tomatically defined functions (ADFs).  This
+technique places constraints on the tree_usually the nodes around the
+root have a constant structure for all individuals, and this constrant
+structure has two or more "slots" where the evolved portions of the
+individual hang off.
+
+The running example in this section will be the "two-boxes" problem
+presented in [4].  This problem attempts to evolve a program to
+compute l0 w0 h0 - l1 w1 h1 using the four basic arithmetic functions
+and six terminals representing the six variables.  Koza's experiments
+with this problem use a single three-argument ADF.  All individuals in
+the LISP representation of this problem fit the general framework
+depicted in Figure 2.1.
+
+                      progn
+                     /     \
+                  defun     \
+                /   |  \     \
+            ADF0    |   \     \                     
+                    |    \     \
+        (ARG0 ARG1 ARG2)  \     \
+                          |      \
+   - - - - - - - - - - - -|- - - -\- - - - - - - - - - - - - - - -
+                          |        \
+               <body of ADF0>     <body of main program>
+
+    Figure 2.1: LISP representation of individual in two-boxes
+	   problem.  (After figures in GP II.)
+
+The portion of the individual above the dotted line is just setup for
+the evaluation.  It serves to define a new three-argument function
+ADF0 with the given body, and bind the arguments of the function to
+the symbols ARG0, ARG1, and ARG2 within the function body.1 It then
+evaluates the right, "result-producing" branch of the individual.
+
+1    I'm not a LISP programmer, so forgive me if I'm using the wrong
+     terminology here. -dz
+
+Each of the two evolved sections of the tree has its own set of
+functions and terminals.  The left branch (ADF0) has the four
+arithmetic functions available, but only its only terminals are the
+three arguments ARG0, ARG1, and ARG2.  The right branch, though, has
+the four arithmetic functions, the six terminals representing
+variables, and an additional three-argument fucntion ADF0 which causes
+evaluation of the left branch.  Genetic operators, such as crossover,
+must ensure that new individuals fit this scheme.  In this case,
+crossover must not occur within the nodes above the dotted line, and
+it must ensure that the operation preserves the separate function
+sets_ADF0s can only cross over with other ADF0s and RPBs can only
+cross over with other RPBs.  Similar retrictions apply for mutation.
+
+2.8.1 ADFs in lil-gp
+
+Representation of ADFs in lil-gp is different but essentially
+equivalent.  lil-gp stores only the "guts" of the individual_the
+portions below the dotted line.  lil-gp defines an "individual" as
+being a set of trees rather than a single tree.  The number of trees
+per individual is fixed (set by the application code), say at K.  Each
+tree 0...(K - 1) within an individual can have a different
+function set2 .  The function set for a particular tree number k is
+the same for all individuals.
+
+lil-gp replaces the LISP bookkeeping stuff explicitly stored in the
+individual (the portions above the dotted line) with C bookkeeping
+stuff represented (1) implicitly in the user-defined func- tion sets,
+and (2) explicitly in the structure of the user-written individual
+evaluation function (app_eval_fitness()).
+
+In the two-boxes example, the application code would specify that
+individuals have two trees each.  Let us suppose tree 0 is the RPB and
+tree 1 is ADF0.  The corresponding function sets would look like:
+
+    tree 0:     {+, -, *, =, l0, w0, h0, l1, w1, h1, EVAL1   }
+
+    tree 1:     {+, -, *, =, ARG0  , ARG1  , ARG2  }
+
+EVAL1 is a special type of function.  When the evaluation routine hits
+an EVAL1, it will evaluate tree 1 of the individual and take that
+value as the value of EVAL1.  ARG0, ARG1, and ARG2 are special
+terminals that will take on the appropriate values (the arguments to
+the EVAL1 function) each time an EVAL1 is hit and tree 1 is evaluated.
+EVALn functions may be of any arity, including zero.  The arity of
+these functions is determined when the function set is initialized, by
+counting the number of ARGn terminals in the target tree.
+
+To determine the fitness of the individual in this example, the
+application code would just evaluate tree 0:
+
+2    "function set" in lil-gp terminology always means functions and
+terminals (and other things, as we will see).
+
+      value = evaluate_tree ( ind->tr[0].data, 0 );
+
+Any evaluation of tree 1 of the individual will be done via the EVAL1
+functions in tree 0.
+
+Chapter 3
+Compiling lil-gp
+
+When you unpack the distribution, you should get this directory tree:
+
+    lilgp/
+      app/
+         ant/                 (artificial ant problem)
+         lawnmower/           (lawnmower problem)
+         multiplexer/         (Boolean 11-multiplexer problem)
+         regression/          (symbolic regression problem)
+         skeleton/            (skeleton code for new problems)
+         twobox/              (two-boxes problem)
+      docs/                   (documentation)
+      kernel/                 (kernel source)
+      params/                 (sample parameter files)
+      aux/                    (miscellany)
+
+This chapter describes how to prepare the kernel, and how to build and
+run the five sample problems included in the distribution.  It assumes
+your system is running on some flavor of Unix, and has the GNU make
+utility available.1 If you don't have GNU make, read section 3.4 for
+tips on writing your own makefile or compiling manually.
+
+3.1 Preparing the kernel
+
+First you should examine the file GNUmakefile.kernel in the kernel
+directory.  At the top will be things (such as compiler flags) that
+need to be set for various systems.  Look to see if you need to make
+any changes there.
+
+1   GNU make may be called gmake on your system.
+
+Secondly, you need to customize the timing code, since timing relies
+on system calls which vary from system to system.  You need to create
+a pair of files, event.c and event.h.  There are three pairs of files
+provided:
+
+   ev_times   Use this if your system has the times() system call.  It
+              will provide wall clock time, in addition to processor
+              time spent in user and system spaces, to (on most
+              systems) .01 second resolution.
+
+   ev_time    Use this if your system only has the time() system call.
+              It will provide wall clock time only, to the nearest
+              second.
+
+   ev_none    Use this if nothing else works.  It provides no timing
+              information at all, but will work on anything.
+
+Copy the appropriate pair to event.c and event.h.  Under Unix, that
+would be something like:
+
+     % cp ev_times.c event.c
+     % cp ev_times.h event.h
+
+If you do not know which to use, try them in the order listed.  If
+compilation fails with a message like "Undefined symbol," then try the
+next one.  If all else fails, ev_none will always work since it is not
+system-dependent.
+
+3.2 Building the Sample Problems
+
+Go into the directory for the problem you want to build.  Type make.
+If all goes well, you will be left with an executable named gp in the
+directory.  You can type make clean to remove all the object files in
+that directory, leaving only the executable.
+
+There is a makefile in the directory of each sample problem.  Each of
+these "include"s another file, Makefile.kernel, located in the kernel
+directory, which compiles the kernel code.  Application- specific
+makefile changes should be made in the problem's directory, while
+modifications to the kernel should be reflected in the kernel
+makefile, so that they will be visible for all applications.
+
+The application makefiles included assume use of the gcc compiler.  If
+you do not have that, you can change the makefile to use something
+else.  Look for the line CC = gcc and change gcc to cc, or whatever
+the name of your C compiler is.  You may also need to change some of
+the compiler flags found just beneath that.
+
+3.3 Running the Sample Problems
+
+This section describes specific features and parameters for each
+sample problem.
+
+3.3.1 Symbolic Regression
+
+This uses GP to "discover" the function x^4 + x^3 + x^2 + x, given
+some randomly chosen sample points in the interval [-1, 1).  In
+addition to the normal output files, it creates another (with the
+extension ".fn"), that has the best-of-run function evaluated at 201
+points over the interval of interest.  You can use this file directly
+in a plotting utility such as gnuplot to compare the evolved function
+with the objective function.
+
+There are three application-specific parameters.
+
+   app.use_ercs
+          type:  binary
+	  default:  yes
+	  If yes, an ephemeral random constant terminal (with the
+          range [-1; 1)) is added to the function set.
+
+   app.fitness_cases
+          type:  integer
+	  default:  20
+	  The number of fitness cases generated (sample points in the
+	  interval).
+
+When this problem computes the difference between the ideal value of
+the function and the value returned by the individual, large values
+are capped so as not to produce infinite results.  A parameter
+controls the value of this cap:
+
+   app.value_cutoff
+          type:  double
+	  default:  1e15
+	  Maximum allowed value for the difference between objective
+          function and evolved individual for any one fitness case.
+          Larger values are replaced by this number.
+
+You can change the objective function by editing app.c, in the
+function app_initialize().
+
+3.3.2 Artificial Ant
+
+This problem has three parameters:
+
+   app.maxtime
+          type:  int
+	  default:  400
+	  Maximum number of time steps before the ant "times out."
+
+   app.trail
+          type:  filename
+	  default:  none
+	  The name of a file depicting the "trail" of food for this
+          run.  The first line of the file should have the x and y
+          dimensions.  Remaining lines should have a "#" to indicate a
+          square with food, any other character to indicate a blank
+          square.
+
+   app.use_progn4
+          type:  binary
+	  default:  no
+	  Whether or not the PROGN4 fucntion should be included in the
+	  function set.
+
+Two trail files are provided in the ant/ directory: santafe.trl and
+losaltos.trl, both taken from Koza's first book.
+
+In addition to the normal information, the .bst file contains the
+number of time steps used by the ant, the food collected, and a
+picture of the trail.  Blank squares are shown by a ".", uneaten food
+is a "#", squares the ant passed through have an "x", and the final
+location and facing direction of the ant are indicated by a "N", "S",
+"E", or "W" in the appropriate square.
+
+3.3.3 Boolean 11-Multiplexer
+
+This problem has no parameters specific to it.  The .bst file contains
+the usual information plus a Koza-esque "scoreboard," with hits
+indicated by "*" and misses by ".".
+
+3.3.4 Two-boxes
+
+There are no application-specific parameters, and no problem-specific
+output is generated.
+
+3.3.5 Lawnmower
+
+This problem has three parameters:
+
+   app.use_adfs
+          type:  binary
+	  default:  yes
+	  Controls whether the ADFs are used.
+
+   app.lawn_width
+          type:  int
+	  default:  8
+	  The width of the lawn.
+
+   app.lawn_height
+          type:  int
+	  default:  8
+	  The height of the lawn.
+
+3.4 Compiling Without the Makefile
+
+You will first need to set up the event.c and event.h files just as if
+you were using a makefile.  Look in the file GNUmakefile.kernel in the
+kernel directory.  The first three lines (beginning kobjects = main.o
+gp.o eval.o ...) list all the kernel object files that need to be
+built, along with the application objects function.o and app.o.
+Building all those together should produce the executable.
+
+Chapter 4
+Running lil-gp
+
+This chapter describes how to use lil-gp once you have built the
+executable program, including the various command-line options
+available.
+
+4.1 Invoking lil-gp
+
+The default executable name produced by the makefile is "gp".  Once
+you have built this, you can run it from the command line.  There are
+six command-line arguments you can use:
+
+   -f  <parameter_filename>
+          This loads a parameter file into lil-gp's parameter
+          database.  The format of this file is explained in section
+          4.1.1.  You can have multiple -f options.
+
+   -p  <parametername=value>
+          This sets the value of an individual parameter.  You can
+	  have multiple -p options.
+
+   -c  <checkpoint_filename>
+          This restarts lil-gp from the specified checkpoint file.
+	  You may only have one -c option.
+
+   -d  <defined_symbol>
+          This defines the given parameter file symbol.  The space
+          between the "d" and the symbol is optional.
+
+   -u  <parameter_file_directive>
+          This undefines the given parameter file symbol.  The
+          space between the "u" and the symbol is optional.
+
+   -q
+          Causes lil-gp to run in quiet mode, producing nothing on
+          standard output.  Without this option, everything written to
+          the .SYS output file is also printed to the terminal.
+
+These options can be specified in any order, but the order is
+significant.  Options that modify the parameter database (all except
+-q) are processed in the order they appear on the command line.  If a
+parameter is multiply defined, it is the last occurrence of it that
+takes effect.  A listing and explanation of all parameters available
+is given in chapter 5.  Order of directives is important too, so for
+instance:
+
+% gp -dBLAH -f file1 -uBLAH -f file2
+
+will cause the symbol "BLAH" to be defined during the processing of
+file1 but not file2.
+
+Note that all parameter settings are saved in the checkpoint files, so
+if you are just restarting an interrupted run you need only the -c
+option.  You can, however, use -f and -p to modify parameter
+settings_they should, of course, come after the -c option or they will
+have no effect.
+
+4.1.1 Parameter Files
+
+Parameter files have a simple syntax.  Comments can begin with a '#' or
+a ';' and continue to the end of a line.
+
+The file is a series of "name=value" pairs.  If the last
+nonwhitespace, noncomment character on a line is a backslash then the
+next nonblank line is considered a continuation of the line.  Blank
+lines and lines that contain only comments are completely ignored,
+even in the middle of a continuation.  For instance:
+
+sample = here is \
+   a single parameter that is continued \
+# this comment is followed by a blank line
+
+# this comment is preceded by a blank line
+   right through a comment onto this line.
+
+Whitespace (spaces and tabs) are ignored before the name, on either
+side of the equals sign, and after the value.  The following are all
+equivalent:
+
+max_generations  =  100
+      max_generations=   100            ;  here  is  a  comment
+max_generations=100                     #  this  is  a  comment  too.
+
+Both the name and the value of a parameter are just strings.  In many
+cases, the names have been chosen to convey the impression of a
+hierarchical structure, but as far as lil-gp is concerned, all
+parameter names are plain strings and no interpretation is applied.
+So, for example, the parameter names breed[1].rate, breed[01].rate,
+and breed[1.0].rate are all different.
+
+"Preprocessor" Directives
+
+Parameter files also support a simple set of C-preprocessor-like
+directives to allow parts of the file to be processed optionally.
+They all begin with a "%" character, which must occur on the first
+column of the line.  They are:
+
+   %define  symbol
+          Defines the given symbol.  Equivalent to the -d command line
+	  option.
+
+   %undefine  symbol
+          Undefines the given symbol.  Equivalent to the -u command
+	  line option.
+
+   %ifdef  symbol
+          If the given symbol is defined, has no effect.  Otherwise
+          skips all lines up until the next %ifdef, %ifndef, %endif,
+          or end-of-file.
+
+   %ifndef  symbol
+          Same as %ifdef, but reverses the sense of the test.
+
+   %endif
+          Cancels a previous %ifdef or %ifndef.
+
+Symbols are case-sensitive.  Leading and trailing whitespace are
+ignored, but internal whitespace is allowed.1 It is important to
+remember that these may look like C preprocessor directives, but they
+don't work the same.  In particular, you can't nest ifs and there are
+no Boolean operations (i.e.  %ifdef FIRST && SECOND is legal, but it
+tests a single symbol named "FIRST && SECOND"). Also, %define does not
+assign a value to the symbol, and no text substitution occurs.  This
+is merely meant as a simple mechanism for optionally setting groups of
+parameters, without having to fiddle with lots of different parameter
+files.
+
+The idea is that you can keep multiple sets of parameters in one
+parameter file, and switch among them using directives on the command
+line.  You can have a parameter file that looks like:
+
+<some common parameters>
+%ifdef FIRST
+<one set of parameters>
+%endif
+%ifdef SECOND
+<another set of parameters>
+%endif
+
+You can then use one set or the other with a command line like:
+
+gp -d FIRST -f parameter.file
+
+to select the first set.
+
+1  Though probably not a very good idea. Caveat user.
+
+4.2 Output Files
+
+lil-gp produces a number of output files, with statistics on tree size
+and fitness for each genera- tion.  The filenames are produced by
+appending a three-character extension to the value of the
+output.basename parameter.  They are:
+
+  .sys     general information about the run
+  .gen     statistics on tree size and depth
+  .prg     statistics on fitness and hits
+  .bst     information about the current best-of-run individual(s)
+  .his     history of the .bst file
+  .stt     condensed version of all statistics
+
+the .bst is rewritten every generation, and all the other files are
+flushed to disk at the completion of every generation.  This lets you
+see current information on backgrounded runs.
+
+Each message printed to an output file has an integer priority
+associated with it, ranging from 0 to 100.  A given message is
+produced only if its priority is less than or equal to the setting of
+the output.detail parameter.  You can experiment to find a level of
+output detail that you like.
+
+The .gen and .prg files can grow very large, and are basically just a
+human-readable form of the information in the .stt file.  This
+information is not written to them unless you really ask for it (by
+setting the output.detail parameter to at least 90).
+
+The .stt file has one line per subpopulation per generation, each line
+consisting of 20 space- separated numbers.  The parameter
+output.stt_interval can be set to modify how often the .stt file is
+written to.  The default is 1, meaning every generation.  For
+multiple-population problems, a line is written for each
+subpopulation, plus one more line for the population as a whole.  For
+single-population problems, only one line (the overall population
+line) is written, since the overall population is just the single
+subpop.  The meanings of each column are listed in Table 4.1.
+
+The aux directory in the distribution contains a short Perl script
+called splitstt.  This will split an .stt file into separate files for
+each subpopulation.  When invoked as
+
+% splitstt myfile.stt
+
+it will produce files named myfile.stt.pop0, myfile.stt.pop1, etc.
+
+ col   contents
+ --    --------
+   1   generation number                                                        
+   2   subpopulation number (0 indicates the overall population)                       
+   3   mean standardized fitness of generation                            
+   4   standardized fitness of best-of-generation individual            
+   5   standardized fitness of worst-of-generation individual          
+   6   mean tree size of generation                                            
+   7   mean tree depth of generation                                         
+   8   tree size of best-of-generation individual                           
+   9   tree depth of best-of-generation individual                         
+  10   tree size of worst-of-generation individual                          
+  11   tree depth of worst-of-generation individual                                    
+  12   mean standardized fitness of run                                      
+  13   standardized fitness of best-of-run individual                     
+  14   standardized fitness of worst-of-run individual                    
+  15   mean tree size of run                                                     
+  16   mean tree depth of run                                                  
+  17   tree size of best-of-run individual                                     
+  18   tree depth of best-of-run individual                                  
+  19   tree size of worst-of-run individual                                  
+  20   tree depth of worst-of-run individual
+
+ Table 4.1:  Columns of the .stt output file.
+
+Chapter 5
+Parameters
+
+A large number of parameters control lil-gp.  These parameters are
+input via parameter files and command line arguments.  This chapter
+lists and describes all the available parameters.  In addition, user
+code may define application-specific parameters (as in the sample
+artificial ant problem, for instance.)
+
+All parameter settings are saved in the checkpoint files, so if you
+are restarting an aborted run from a checkpoint you do not need to
+explicitly load all the original parameter files on the command line.
+
+Default values for parameters, where appropriate, have been chosen to
+correspond with those given in Chapter 7 ("Detailed Description of
+Genetic Programming") of Koza's (first) book [3].
+
+The following conventions apply:
+
+    1.  All tree depths are measured so that a 1-node tree has depth
+	0.
+
+    2.  For binary parameters, all of the following strings
+        (insensitive to case) mean "on": true, t, on, yes, y, and 1.
+        The corresponding "off" strings are: false, f, off, no, n, and
+        0.
+
+    3.  A "depth ramp" is used to specify the depths of a group of
+        randomly generated trees.  It is a single integer or two
+        integers separated by a hyphen (ascending order, no internal
+        whitespace).  If a single integer, then all trees will be
+        generated with that depth.  If a range, then each tree will
+        have a depth selected randomly from that range.
+
+5.1 General
+
+These parameters govern the overall operation of the run.
+
+   max_generations
+          type:  integer
+	  default:  none
+	  The maximum number of generations for the run.
+
+   pop_size
+          type:  integer
+	  default:  none
+	  The population size.  For multipop runs, the subpopulation
+	  size.
+
+   random_seed
+          type:  integer
+	  default:  1
+	  The seed for the random number generator.
+
+5.2 Output
+
+These parameters control the writing of output and checkpoint files.
+
+   output.basename
+          type:  string
+	  default:  lilgp
+	  The base name for the output files.  Various three-character
+          extensions are added to create the actual filenames.
+
+   output.detail
+          type:  integer, 0-100
+	  default:  50
+	  The level of detail in output files.  100 is everything, 0
+	  is practically nothing.
+
+   output.stt_interval
+          type:  positive integer
+	  default:  1
+	  How often, in generations, to write information to the STT
+	  file.
+
+   output.bestn
+          type:  positive integer
+	  default:  1
+	  How many individuals are printed to the BST file (i.e., if
+          set to 5 then the top 5 individuals are written to the
+          file).
+
+   output.digits
+          type:  integer
+	  default:  4
+	  The number of decimal places with which fitness values are
+	  printed in output files.
+
+   checkpoint.interval
+          type:  integer
+	  default:  none
+	  Specifies how often (in generations) to write a checkpoint
+          file.  If not set or negative, no checkpoint files are
+          written.  If set to a positive number, checkpoint files are
+          written every (that number) generations and after the last
+          generation.  If set to zero, then only one checkpoint file
+          is written, after the last generation.
+
+   checkpoint.filename
+          type:  string
+	  default:  gp%06d.ckp
+	  A printf() format string with exactly one %d specifier,
+          which is replaced with a generation number.  The resulting
+          string will be used as the filename for the checkpoint file
+          for that generation.
+
+   checkpoint.compress
+          type:  string
+	  default:  none
+	  A printf() format string used to generate a command to run
+          on each checkpoint file after it is written.  The string
+          should have one %s specifier, which will be replaced with
+          the name of the checkpoint file.  The usual printf()
+          conventions for percent signs apply.  Typically this command
+          is used to compress the checkpoint file.  If this parameter
+          is not defined, then no command is executed.
+
+5.3 Size Limits
+
+These parameters set limits on the number of nodes and/or the depth of
+individuals in the popu- lation, both at initialization and during
+evolution.  In problems where individuals are composed of multiple
+trees, # refers to the tree number.
+
+   max_nodes
+          type:  integer
+	  default:  none
+	  Maximum total number of nodes per individual.  If not set,
+	  no limit is enforced.
+
+   tree[#].max_nodes
+          type:  integer
+	  default:  none
+	  The maximum number of nodes in tree #.  If not set, no limit
+	  is enforced.
+
+   max_depth
+          type:  integer
+	  default:  none
+	  Maximum depth of individual.  If not set, no limit is
+	  enforced.
+
+   tree[#].max_depth
+          type:  integer
+	  default:  none
+	  The maximum depth of tree #.  If not set, no limit is
+	  enforced.
+
+5.4 Initialization
+
+These parameters control generation of the initial random population.
+
+   init.tree[#].method
+          type:  half_and_half, grow, or full
+	  default:  none
+	  Method for generating tree # of each individual in the
+          initial population.  If not set, then the value of
+          init.method is used.
+
+   init.method
+          type:  half_and_half, grow, or full
+	  default:  half_and_half
+	  Default method for generation of initial random population.
+
+   init.tree[#].depth
+          type:  depth ramp
+	  default:  none
+	  A depth ramp for choosing the size of tree # during the
+          generation of the initial population.  If not set, then the
+          value of init.depth is used.
+
+   init.depth
+          type:  string
+	  default:  2-6
+	  Default depth ramp for generation of initial random
+	  population.
+
+   init.random_attempts
+          type:  positive integer
+	  default:  100
+	  During initial generation, trees that violate size limits or
+          are duplicates are rejected.  This parameter is the maximum
+          number of consecutive rejected trees the program will
+          tolerate before generating an error and giving up.
+
+5.5 Selection Methods
+
+A selection method is an algorithm for picking an individual from a
+population.  Selection methods are used in various places throughout
+the program.  This section does not list parameters per se, but rather
+describes valid values for parameters needing selection methods.
+
+lil-gp currently has seven selection methods available.  Some
+selection methods have options, which are set by following the method
+name with a comma-separated list of "option=value" pairs, as in:
+
+blahblah.select  =  tournament,size=7
+
+Whitespace in the string is completely ignored.  The previous example
+is equivalent to all of the following:
+
+blahblah.select = tournament,  s   ize  =   7
+blahblah.select = tourname   nt,size=7
+blahblah.select = tournament   ,   size = 7
+
+The selection methods available are:
+
+fitness   Fitness-proportionate selection.  Individuals are chosen at
+        random, with the probability for an individual proportional to
+        its adjusted fitness.  No options are available.
+
+fitness_overselect   Greedy overselection.  In a population, the top
+        individuals accounting for cutoff of the total adjusted
+        fitness are placed in Group I, the rest of the population
+        going into Group II. Individuals are randomly selected from
+        Group I (proportional to adjusted fitness) proportion of the
+        time, and from Group II (proportional to adjusted fitness) the
+        rest of the time.  cutoff and proportion are set with options:
+
+        cutoff   For populations less than 1000, defaults to 0.32.  For
+               larger populations, defaults to 320/popsize (i.e., 32%
+               for popsize of 1000, 16% for popsize of 2000, etc.).
+
+        proportion   Defaults to 0.80.
+
+tournament   A number of individuals are chosen at random with uniform
+        probability with reselec- tion allowed.  The best of the
+        chosen individuals is selected.  Has one option:
+
+        size   The size of the tournament (how many individuals are
+               randomly chosen to compete).  Defaults to 2.
+
+inverse_fitness   Individuals are randomly chosen with probability
+        proportional to 1 divided by the adjusted fitness.
+
+random   Individuals are selected at random with uniform probability.
+
+best    The first time the selection is done, the best member of the
+        population (as determined by adjusted fitness) is returned.
+        Subsequent selections return the 2nd, 3rd, 4th, etc.  best
+        individuals.  Should not be used in a context which will need
+        to select more individuals than are in the population.
+
+worst   Same as best, but returns individuals in order of increasing
+        adjusted fitness (i.e., worst first).
+
+5.6 Breeding
+
+Breeding is the term used in lil-gp for creation of the new population
+each generation.  It is controlled through a number of "phases."1 Each
+phase has an operator (such as crossover) and a rate specifying how
+often that operator occurs.
+
+The breeding parameters described at the end of Chapter 7 in Koza's
+first book [3] (for populations less than 1000) can be emulated with
+the following breeding settings:
+
+breed_phases = 2
+breed[1].operator = crossover, select=fitness
+breed[1].rate = 0.9
+breed[2].operator = reproduction, select=fitness
+breed[2].rate = 0.1
+
+The "Simple LISP Code" presented in the back of that book can be
+emulated with the fol- lowing parameters (for populations of 1000 or
+larger, replace all occurrences of fitness with fitness_overselect):
+
+probabilistic_operators = off
+breed_phases = 4
+  ; functionpoint crossover 70% of the time
+breed[1].operator = crossover, select=fitness, internal=1.0
+breed[1].rate = 0.7
+  ; anypoint crossover 20% of the time
+breed[2].operator = crossover, select=fitness, internal=0.0, external=0.0
+breed[2].rate = 0.2
+breed[3].operator = reproduction, select=fitness
+breed[3].rate = 0.1
+breed[4].operator = mutation, select=fitness, method=grow, depth=4
+breed[4].rate = 0.0
+
+In the second book [4], Koza uses defaults equivalent to:
+
+breed_phases = 2
+breed[1].operator = crossover, select=(tournament, size=7)
+breed[1].rate = 0.9
+breed[2].operator = reproduction, select=(tournament, size=7)
+breed[2].rate = 0.1
+
+The specific parameters are:
+
+1     This term is somewhat of an anachronism, a holdover from a very early
+      version of lil-gp.
+
+   breed_phases
+          type:  integer
+	  default:  none
+	  Specifies the number of phases.
+
+   probabilistic_operators
+          type:  binary
+	  default:  on
+	  When on, phases are selected by chance, with frequency
+          proportional to that phase's "rate" parameter.  When off,
+          the number of individuals produced by a given phase is
+          exactly (well, approximately) proportional to that phase's
+          rate.
+
+The following parameter names should all substitute a number in the
+range [1,breed_phases] for "#".
+
+   breed[#].rate
+          type:  float
+	  default:  none
+	  The rate for this phase.  With probabilistic_operators on,
+          specifies the probability with which this phase is
+          (randomly) chosen.  Otherwise, specifies the proportion of
+          individuals in new population to be created with this phase.
+          Note that if the rates for all phases sum to something other
+          than 1, each is divided by the total to normalize them.
+
+   breed[#].operator
+          type:  operator string
+	  default:  none
+	  Specifes the operator for this phase, and any arguments it
+	  has.
+
+The available operators are listed in the next section.
+
+5.7 Operators
+
+Operators are picked in a manner identical to that for selection
+methods: the string consists of the operator name, a comma, then any
+arguments to that operator as a comma-separated list of "option=value"
+pairs.
+
+Note that the argument list for an operator may include one or more
+selection methods.  If the selection method itself has arguments, then
+the entire selection string should be enclosed in paren- theses:
+
+blahblah.operator = crossover, select=(tournament, size=7), internal=0.3
+
+This forces the "size" argument to be parsed as an option to the
+tournament selection method, not to the crossover operator.
+
+Three operators are currently available:
+
+crossover  Chooses two parent individuals.  Picks a tree on each one,
+        subject to the restriction that the trees be over the same
+        function set.  Chooses a crossover point on each tree.
+        Switches the subtrees rooted at those points, placing newly
+        created individuals in new population.  This operator has the
+        following arguments:
+
+        select   Specifies the selection method (and arguments) used to
+               pick the first parent.  This option is required.
+
+        select2   Specifies the selection method (and arguments) used to
+               pick the second parent.  If not specified, then
+               defaults to be the same method as is used to pick the
+               first parent.
+
+        keep_trying   This is a binary argument.  It specifies what to
+               do when the crossover operation produces a tree that
+               violates the node and/or depth limits.  If on, then it
+               keeps picking new crossover points on the same two
+               parents until it produces legal child trees.  If off,
+               then upon failure it just reproduces one of the parents
+               into the new generation in lieu of the child
+               individual.  The default is off.
+
+        internal   Specifies the frequency with which internal points
+               are selected as the crossover point.
+
+        external   Specifies the frequency with which external points
+               are selected as the crossover point.  The defaults for
+               these two options are coupled.  If neither is set, then
+               internal is 0.9 and external is 0.1.  If one is set but
+               not the other, the unset one is taken as zero.  If both
+               are set to zero, then the crossover point is selected
+               uniformly over all points, without regard to their
+               location.
+
+        tree   Sets the frequency with which a particular tree is
+               selected as the crossover tree.  Should be a comma
+               separated list of reals enclosed in parentheses, with a
+               length equal to the number of trees per individual.
+               For instance, if individuals consist of three trees,
+               this argument could be tree=(0.1,0.2,0.7).
+
+        treen  Sets the frequency with which tree n is selected as the
+               crossover tree.  Multiple "tree" and "treen" arguments
+               are allowed and are applied in the order that they
+               appear.  If no tree arguments are used, then each tree
+               has the same probability of being selected.  If some
+               tree arguments are used, any unspecified trees are
+               given a zero probability of being chosen.
+
+reproduction   Chooses an individual and copies it into the new
+        population.  It has only one argument, which is required:
+
+        select   The selection method (and arguments) used to pick the
+individual to be reproduced.
+
+mutation   Chooses an individual, then chooses a tree within that
+        individual and a mutation point on that tree.  Replaces the
+        subtree at that point with a randomly generated subtree.
+        Places new indiviudual in new population.  It has several
+        arguments:
+
+        select   The selection method (and arguments) used to pick the
+               individual to be mutated.  This argument is required.
+
+        keep_trying   This is a binary argument.  It specifies what to
+               do when the mutation operation produces a tree that
+               violates the node and/or depth limits.  If on, then it
+               keeps picking new mutation points and generating
+               replacement subtrees until it produces a legal child
+               tree.  If off, then upon failure it just reproduces the
+               original tree into the new generation in lieu of the
+               mutated individual.  The default is off.
+
+        internal   Specifies the frequency with which internal points
+               are selected as the mutation point.
+
+        external   Specifies the frequency with which external points
+               are selected as the mutation point.  The defaults for
+               these two options are coupled.  If neither is set, then
+               internal is 0.9 and external is 0.1.  If one is set but
+               not the other, the unset one is taken as zero.  If both
+               are set to zero, then the mutation point is selected
+               uniformly over all points, without regard to internal
+               or external.
+
+        tree   Sets the frequency with which a particular tree is
+               selected as the mutated tree.  Should be a comma
+               separated list of reals enclosed in parentheses, with a
+               length equal to the number of trees per individual.
+               For instance, if individuals consist of three trees,
+               this argument could be tree=(0.1,0.2,0.7).
+
+        treen   Sets the frequency with which tree n is selected as the
+               mutated tree.  Multiple "tree" and "treen" arguments
+               are allowed and are applied in the order that they
+               appear.  If no tree arguments are used, then each tree
+               has the same probability of being selected.  If some
+               tree arguments are used, any unspecified trees are
+               given a zero probability of being chosen.
+
+        method   Selects the method used to generate the replacement
+               subtree.  The allowed values are the same as those for
+               the init.method parameter.  The default is
+               half_and_half.
+
+        depth   The depth ramp used to generate the replacement subtree.
+		The default is "0-4".
+
+5.8 Multiple Populations
+
+lil-gp supports multiple population runs, in which subpopulations
+evolve separately, exchanging individuals (or parts of individuals)
+periodcally.  Breeding parameters can be set individually for each
+subpop.  The frequency of exchange and the exchange topology are set
+via parameters.
+
+All three of these populations must be set to use multiple
+populations:
+
+   multiple.subpops
+          type:  integer
+	  default:  1
+	  The number of subpopulations (each of pop_size individuals)
+          for multipop runs.  The default of 1 specifies an ordinary,
+          singlepop run.
+
+   multiple.exch_gen
+          type:  integer
+	  default:  none
+	  How often (in generations) the subpop exchange takes place.
+
+
+   multiple.exchanges
+	  type: integer
+	  default: none
+	  The number of sets of exchanges done.
+
+Any breeding parameter can be set for a specific subpop by prefixing
+the parameter name with "subpop[#].".  (Occurrences of "#" in this
+parameter names of section should be replaced with a subpopulation
+number, in the range [1; multiple.subpops ].)  The unprefixed form of
+the parameter name acts a default.  For instance, when looking for the
+operator for the first phase for breeding subpop 3, lil-gp will first
+look for a parameter named subpop[3].breed[1].operator.  If that is
+not found, it will look for a parameter named just breed[1].operator.
+If that is not found, lil-gp will stop with an error message.
+
+Exchange of information between subpopulations can take one of two
+forms.  In the first, whole individuals are copied from one subpop to
+another, replacing some of the individuals in the des- tination
+subpop.  The other applies only to individuals composed of multiple
+trees.  The exchange process can create a new individual by taking
+different trees from (possibly) individuals in (possibly) different
+subpops, and using the resulting composite individual to replace an
+existing individual.
+
+You specify a set of exchanges by first giving the following three
+parameters: ("#" in all these should be replaced with a number from 1;
+: : :; multiple.exchanges .)
+
+   exch[#].to
+          type:  integer
+	  default:  none
+	  The number of the subpop to receive the individuals.
+
+   exch[#].toselect
+          type:  selection method
+	  default:  none
+	  The method used to select the individuals to be replaced in
+	  the destination subpopulation.
+
+   exch[#].count
+          type:  integer
+	  default:  none
+	  How many individuals to replace with this exchange.
+
+For the simple transfer of a whole individual, you specify two more parameters:
+
+   exch[#].from
+          type:  integer
+	  default:  none
+	  The subpop to take the individuals out of.  Individuals are
+          always copied ; the donor subpop is left unchanged.
+
+   exch[#].fromselect
+          type:  selection method
+	  default:  none
+	  The method used to select the individuals to be copied out.
+
+For example, consider a ring of three subpopulations.  Each
+subpopulation chooses its five best members and sends them to the next
+subpop in the ring.  Each takes the individuals sent to it and uses
+them to replace its five worst members.  The topology parameters for
+this would look like:
+
+multiple.subpops = 3
+multiple.exch_gen = 10    # exchange every 10 generations
+multiple.exchanges = 3
+
+exch[1].from = 1
+exch[1].fromselect = best
+exch[1].to = 2
+exch[1].toselect = worst
+exch[1].count = 5
+
+exch[2].from = 2
+exch[2].fromselect = best
+exch[2].to = 3
+exch[2].toselect = worst
+exch[2].count = 5
+
+exch[3].from = 3
+exch[3].fromselect = best
+exch[3].to = 1
+exch[3].toselect = worst
+exch[3].count = 5
+
+to build a new individual from pieces of current ones, you need to
+specify a from and/or fromselect for each tree instead:
+
+   exch[#].from.tree[#]
+          type:  integer
+	  default:  none
+
+   exch[#].fromselect.tree[#]
+   	  type: string
+	  default: none
+
+There are four possibilities, for each tree:
+
+from and fromselect are both set.
+        In this case, the selection method fromselect is used to
+        select an individual from the subpop from, and the tree is
+        taken from that individual.
+
+only from is set.
+        The parameter exch[#].fromselect (with no tree number) is
+        examined for a default.  If it is found, then it is used as
+        the selection method as in the first case.  If it is not
+        found, an error message results.
+
+only fromselect is set.
+        fromselect should be set to the string "asn", where n is a
+        tree number.  This means "take this tree from the same
+        individual you took tree n from."  If it is set to anything
+        else an error message results.
+
+neither is set.
+        The tree is taken from the individual selected to be replaced
+        (i.e., that tree is just left alone).
+
+Consider this exotic (and probably not terribly useful) example.  We
+have three subpops and individuals composed of four trees.  We want to
+take the worst individuals in subpop 1, replace their tree 0 with that
+from an individual in subpop 2 (using the fitness selection method),
+and replace both trees 1 and 2 with those from a single individual in
+subpop 3 (using tournament selection with a tournament size of 7).  We
+want to leave tree 3 alone.  We want to replace 10 individuals in this
+manner.  The following parameters will set this up:
+
+exch[1].to = 1
+exch[1].toselect = worst
+exch[1].count = 10
+; replace tree 0 with one from an individual in subpop 2, fitness selection
+exch[1].from.tree[0] = 2
+exch[1].fromselect.tree[0] = fitness
+; replace tree 1 with one from an indiviudal in subpop 3, tournament selection
+exch[1].from.tree[1] = 3
+exch[1].fromselect.tree[1] = tournament, size=7
+; replace tree 2 with the one from the individual that you got tree 1 from
+exch[1].fromselect.tree[2] = as1
+; no parameters for tree 3 means leave it unchanged
+
+Exchanges are done in the order that they are specified in the
+parameter file.  Individuals that are placed into a subpopulation
+(either copied whole or created from different trees) are marked as
+ineligible to be written over by another exchange during that
+generation.  They can, however, contribute part or all of themselves
+to other exchanges.
+
+Chapter 6
+Implementing Problems
+
+This chapter documents how to implement a new problem in lil-gp.
+There are five files that the user must write.  A set of skeleton user
+files is provided in the distribution, it is suggested that you copy
+these files and modify them to create a new problem.
+
+Throughout this chapter, the term "function" refers to functions in
+the GP sense.  "C function" refers to a function in the C language.
+
+User-written code can be divided into two categories: C functions
+implementing functions and terminals, and user callbacks.  The user
+callbacks, usually placed in the app.c file, do application- specific
+tasks like function set initialization, calculation of fitness, etc.
+The other group of C functions, usually placed in function.c, are the
+code that is called by the kernel during tree evaluation.
+
+6.1 Basic Definitions
+
+There are two defined constants that the kernel of lil-gp needs in
+appdef.h.  They are:
+
+  constant  value
+
+  MAXARGS   the maximum number of arguments (children) for any function
+  DATATYPE  the C data type returned by all functions and terminals
+
+This is also a good place to put any application-specific #defines
+that you may need.  It is suggested that all application defines be
+prefixed with APP_ so as not to conflict with any current or future
+kernel defines.
+
+If your problem requires a more complex data type than the ones
+available in C, you can use typedef to create a new type.  For
+instance, the lawnmower problem uses an ordered pair of integers as
+its datatype.  Its appdef.h file contains:
+
+typedef  struct
+{
+        short  x;
+        short  y;
+}  vector;
+
+#define  DATATYPE  vector
+
+6.2 Functions and Terminals
+
+For every ordinary function and terminal in your problem, you write a
+C function to implement the action of that node.  These C functions
+are placed in the file function.c, and prototypes for them should be
+placed in function.h.
+
+Each C function is passed two arguments, an int and a (farg *).  What
+it does with these arguments depends on whether it is implementing a
+function or a terminal, and if it is a function, what type of
+function.  All these C functions should return the user-defined type
+DATATYPE.
+
+There are two types of functions, referred to in lil-gp as types
+"DATA" and "EXPR".  If the function is of type DATA, then when it is
+found in a tree, all its children will be evaluated and their return
+values passed to the user code implementing the function.  The LISP
+equivalent of this is to implement the function with a defun.  If the
+lil-gp function is of type EXPR, then the user code is passed pointers
+to its children, which it can then ask the kernel to evaluate if
+needed.  It can evaluate each child as many times as appropriate, or
+not at all.  The LISP equivalent of this type would be to implement
+the function with a defmacro.  Use of the correct type in lil-gp is
+important, especially when the evaluation of functions and terminals
+have global side effects (for instance, where the evolved program is
+controlling a simulation).
+
+If the function is of type DATA, it can ignore the int passed to it.
+The (farg *) argument will be an array of arguments, one element for
+each child.  The C function should reference the d field of each
+element to get that child's value.  For instance, consider the
+two-argument addition function from the regression problem:
+
+DATATYPE f_add ( int tree, farg *args )
+{
+    return args[0].d + args[1].d;
+}
+
+When this function occurs in evaluating a tree, the lil-gp kernel will
+evaluate the children, store their values in the args array, and call
+this C function.
+
+Now consider another example: the IF_FOOD_AHEAD function from the
+artificial ant problem.  It has two arguments_the first should be
+evaluated if there is food in front of the ant, the second otherwise.
+If type DATA were to be used for this function, then both would be
+evaluated and only their return values passed to the function (which
+would be doubly useless in this case, since all the functions and
+terminals in the ant problem ignore the return value).  We want to let
+the function itself choose which child to evaluate.  This function
+must be of type EXPR:
+
+DATATYPE f_if_food_ahead ( int tree, farg *args )
+{
+    if ( ... )   /* determine if there is food ahead */
+        evaluate_tree ( args[0].t, tree );
+    else
+        evaluate_tree ( args[1].t, tree );
+}
+
+For type EXPR functions, the t field of each array element should be
+accessed_it is a pointer to the corresponding child.  This pointer can
+be passed to the evaluate_tree() C function to actually do the
+evaluation.  evaluate_tree() also needs to be passed the integer
+argument (called tree in this case).
+
+C functions implementing terminals should ignore both arguments passed
+to them.  A simple example is the independent variable terminal X from
+the symbolic regression problem:
+
+DATATYPE f_indepvar ( int tree, farg *args )
+{
+    return g.x;
+}
+
+This function just returns the value of the independent variable for
+the current fitness case, which has previously been stored in a global
+variable by the application fitness evaluation function.
+
+6.2.1 Ephemeral Random Constants
+
+To create a terminal that acts as an ephemeral random constant, you
+need to write two C functions.  One will generate a new constant, and
+one will print its value to a string.  The first is passed a pointer
+to a DATATYPE; it should generate a new value and place it in the
+pointer.
+
+void f_erc_generate ( DATATYPE *r )
+{
+    *r = random_double() * 10.0;
+}
+
+This function generates a random real number in the interval [0; 10)
+(assuming that DATATYPE is defined to be double or some compatible
+type.)
+
+The second function is used when printing out individuals.  It is
+passed a DATATYPE value.  It should create a string representing that
+value and return it.  Typically this will print the value into a
+buffer and return the buffer's address.  The buffer should be declared
+static_it should not be dynamically allocated (as there is no code to
+free it).  An example:
+
+char *f_erc_print ( DATATYPE v )
+{
+    static char buffer[20];
+
+    sprintf ( buffer, "%.5f", v );
+    return buffer;
+}
+
+assuming again that DATATYPE is double or something compatible, this
+will print the value to five decimal places.
+
+6.2.2 Evaluation and Argument Functions
+
+No user code needs to be written to support the ADF functions or
+corresponding argument termi- nals.  Special entries are made in the
+function table for them, and the kernel handles the evaluation
+internally.
+
+Evaluation functions with arguments have type DATA or EXPR, just like
+ordinary functions.  If the type is DATA, when the evaluation function
+is hit, each child is evaluated once, and the return values are made
+available via the argument terminals in the evaluated tree.  If the
+type is EXPR, then the children are evaluated only when the evaluation
+of the target tree hits the appropriate argument terminal (and if the
+same argument terminal is hit multiple times, the child is reevaluated
+each time).
+
+6.3 User Callbacks
+
+Only two of the user callbacks listed here are required to do anything
+(app_build_function_sets() to create the function set(s) and
+app_eval_fitness() to evaluate individuals).  All the others must be
+present, but they can be just stubs if you don't want to make use of
+them.
+
+6.3.1 Defining the Function Set(s)
+
+The first user callback required is app_build_function_sets().  This C
+function creates tables for each function set.  There may be more than
+one function set when individuals are represented by multiple trees,
+since each tree can have its own function set.  Each function set is
+an array of type function.  The following tables show, for each type
+of node, what the eight fields of the corresponding function structure
+should be.  Some general rules apply:
+
+     o  The code, ephem_gen, and ephem_str fields are C function
+        pointers, not strings.  You put the name of the function you
+        are referencing here, but don't quote it.
+
+     o  The string field is the name of the function as a string.  It
+        is what gets printed to represent the node when trees are
+        printed to output files.  Names may not contain whitespace or
+        any of the characters `:', `(', `)', `[', `]'.
+
+     o  The index field should always be zero.
+
+  ordinary function
+
+  code       |  The C function implementing the function.
+  ephem_gen  |  NULL
+  ephem_str  |  NULL
+  arity      |  The arity of the function (greater than zero).
+  string     |  The name of the function.
+  type       |  FUNC_DATA or FUNC_EXPR, as appropriate.
+  evaltree   |  -1
+  index      |  0
+
+  ordinary terminal
+
+  code       |  The C function implementing the terminal.
+  ephem_gen  |  NULL
+  ephem_str  |  NULL
+  arity      |  0
+  string     |  The name of the terminal.
+  type       |  TERM_NORM
+  evaltree   |  -1
+  index      |  0
+
+  ephemeral random constant terminal
+
+  code       |  NULL
+  ephem_gen  |  The C function to generate new random values.
+  ephem_str  |  The C function to print values to a string.
+  arity      |  0
+  string     |  The generic name of the terminal.  (Printed trees will
+             |  almost always have the string representing the value of
+             |  the terminal, rather than this name.
+  type       |  TERM_ERC
+  evaltree   |  -1
+  index      |  0
+
+  evaluation function/terminal
+
+  code       |  NULL
+  ephem_gen  |  NULL
+  ephem_str  |  NULL
+  arity      |  -1.  (The kernel will determine the arity by looking
+	     |  at the argument terminals in the target tree.)
+  string     |  The name of this function/terminal.
+  type       |  EVAL_DATA or EVAL_EXPR, as appropriate.
+  evaltree   |  The number of the tree to evaluate when this function is hit.
+  index      |  0
+
+  argument terminal
+
+  code       |  NULL
+  ephem_gen  |  NULL
+  ephem_str  |  NULL
+  arity      |  0
+  string     |  The name of this terminal.
+  type       |  TERM_ARG
+  evaltree   |  The argument number (which child of the corresponding
+	     |  evaluation function this terminal represents).
+  index      |  0
+
+The function sets for the lawnmower problem contain examples of all
+five types of node:
+
+     function sets[3][10] =
+
+            /*** RPB ***/
+     { { { f_left,  NULL,     NULL,     0, "left",  TERM_NORM, -1, 0 },
+         { f_mow,   NULL,     NULL,     0, "mow",   TERM_NORM, -1, 0 },
+         { NULL,    f_vecgen, f_vecstr, 0, "Rvm",   TERM_ERC,  -1, 0 },
+              
+         { f_frog,  NULL,     NULL,     1, "frog",  FUNC_DATA, -1, 0 },
+         { f_vma,   NULL,     NULL,     2, "vma",   FUNC_DATA, -1, 0 },
+         { f_prog2, NULL,     NULL,     2, "prog2", FUNC_DATA, -1, 0 },
+         { NULL,    NULL,     NULL,    -1, "ADF0",  EVAL_DATA,  1, 0 },
+         { NULL,    NULL,     NULL,    -1, "ADF1",  EVAL_DATA,  2, 0 } },
+
+            /*** ADF0 ***/
+       { { f_vma,   NULL,     NULL,     2, "vma",   FUNC_DATA, -1, 0 },
+         { f_prog2, NULL,     NULL,     2, "prog2", FUNC_DATA, -1, 0 },
+              
+         { f_left,  NULL,     NULL,     0, "left",  TERM_NORM, -1, 0 },
+         { f_mow,   NULL,     NULL,     0, "mow",   TERM_NORM, -1, 0 },
+         { NULL,    f_vecgen, f_vecstr, 0, "Rvm",   TERM_ERC,  -1, 0 } },
+
+
+            /*** ADF1 ***/
+       { { f_left,  NULL,     NULL,     0, "left",  TERM_NORM, -1, 0 },
+         { f_mow,   NULL,     NULL,     0, "mow",   TERM_NORM, -1, 0 },
+         { NULL,    f_vecgen, f_vecstr, 0, "Rvm",   TERM_ERC,  -1, 0 },
+         { NULL,    NULL,     NULL,     0, "ARG0",  TERM_ARG,   0, 0 },
+
+         { f_frog,  NULL,     NULL,     1, "frog",  FUNC_DATA, -1, 0 },
+         { f_vma,   NULL,     NULL,     2, "vma",   FUNC_DATA, -1, 0 },
+         { f_prog2, NULL,     NULL,     2, "prog2", FUNC_DATA, -1, 0 },
+         { NULL,    NULL,     NULL,    -1, "ADF0",  EVAL_DATA,  1, 0 } } };
+
+
+This problem uses two ADFs_the zero-argument ADF0 and the one-argument
+ADF1.  Both ADFs are available to the result-producing branch.  In
+addition, ADF0 can be called from within ADF1.
+
+Note that the functions and terminals can appear in the table in any
+order.  Previous versions of lil-gp required all functions to appear
+first in the table, followed by the terminals, but this is no longer
+the case.
+
+Once the function table is created, a list of function sets needs to
+be created that references it.  You should create an array of type
+function_set with one member for each function set.  The size field
+should be set to the number of functions and terminals in it, and the
+cset field should point to the function table.  The lawnmower problem
+uses:
+
+    function_set *fset;
+    . . . .
+    fset = (function_set *)MALLOC ( 3 * sizeof ( function_set ) );
+    fset[0].size = 8;
+    fset[0].cset = sets[0];
+    fset[1].size = 5;
+    fset[1].cset = sets[1];
+    fset[2].size = 8;
+    fset[2].cset = sets[2];
+
+Next you must build a tree map, indicating which trees use which
+function sets. This is just an array of ints, where the nth element
+indicates the number of the function set of the nth tree.  In the case
+of the lawnmower problem, there is just one tree per function set:
+
+    tree_map = (int *)MALLOC ( 3 * sizeof ( int ) );
+    tree_map[0] = 0;
+    tree_map[1] = 1;
+    tree_map[2] = 2;
+
+If two trees use the same function set, then crossover may exchange
+genetic material between these trees on different individuals.  If
+this is not desired, you can make a copy of the function set, and have
+one tree use the copy.  This would be accomplished with something
+like:
+
+    fset[2].size = 8;
+    fset[2].cset = sets[2];
+    fset[3].size = 8;
+    fset[3].cset = sets[2];   /* note they refer to the same functions */
+    . . .
+    tree_map[2] = 2;
+    tree_map[3] = 3;
+
+Now trees 2 and 3 will not crossover with each other, even though
+their function sets are identical.
+
+One last thing to build is a list of tree names_these will be used to
+label the separate trees when individuals are printed out:
+
+    char *tree_name[3];
+    . . .
+    tree_name[0] = "RPB";
+    tree_name[1] = "ADF0";
+    tree_name[2] = "ADF1";
+
+Now that all the data structures are built, you must pass them as
+arguments to the kernel function function_sets_init().  This function
+will do some validity checking and make internal copies of everything.
+After this function returns, you may destroy your copies.  You should
+also save the return value of this function (an int) and return it to
+the kernel.
+
+    int ret;
+    . . .
+    ret = function_sets_init ( fset, 3, tree_map, tree_name, 3 );
+
+    FREE ( tree_map );
+    FREE ( fset ) ;
+
+    return ret;
+
+The second argument to function_sets_init() is the number of function
+sets, the fifth argument is the number of trees per individual.
+
+6.3.2 Fitness Evaluation Function
+
+The user function app_eval_fitness() is called whenever an individual
+is to be evaluated.  It is passed a pointer to an individual
+structure.  It should fill in these fields:
+
+r_fitness   The raw fitness.
+
+s_fitness   The standardized fitness (all values nonnegative, a perfect
+individual is zero).
+
+a_fitness   The adjusted fitness (lies in the interval [0; 1], a perfect
+individual is one).
+
+hits   The auxiliary hits measure.
+
+evald   Always set this to EVAL_CACHE_VALID to indicate that the fitness
+fields are valid.
+
+The function should call set_current_individual() with the pointer
+passed to it before doing any evaluations.  The function can evaluate
+trees of the individual by calling evaluate_tree(), passing it a
+pointer to the tree data and the tree number.
+
+Typically the function will iterate over all the fitness cases.  The
+global variable g, which is a user-defined structure, is used to pass
+information between app_eval_fitness() and the functions and
+terminals.  For example, in the symbolic regression problem, g.x is
+set to the x value for the current fitness case, then the tree is
+evaluated.  When the evaluation reaches the independent variable
+terminal, the C function implementing it simply reads this value and
+returns it.
+
+A typical evaluation function will have this general structure:
+
+void app_eval_fitness ( individual *ind )
+{
+    set_current_individual ( ind );
+    . . .
+    for ( <loop over fitness cases> )
+    {
+        <set up global structure for current fitness case>
+
+        /* here we evaluate tree 0, but you can evaluate any tree of
+        * the individual as many times as you like.
+        */
+        value = evaluate_tree ( ind->tr[0].data, 0 );
+        . . .
+    }
+
+    ind->hits = <whatever>;
+    ind->r_fitness = <whatever>;
+    ind->s_fitness = <whatever>;
+    ind->a_fitness = <whatever>;
+
+    /* indicate that the fitness fields are correct. */
+    ind->evald = EVAL_CACHE_VALID;
+}
+
+More complex problems which require a simulation store the entire
+state of the simulation in g.  app_eval_fitness() resets the
+simulation, before evaluating the tree.  For instance, in the
+artificial ant problem the tree is evaluated repeatedly until the time
+expires or all the food has been collected.
+
+The functions and terminals read and modify the global state
+information in order to simulate the ant's senses and movements.
+
+6.3.3 Custom Output
+
+After every the evaluation of each generation, lil-gp calls the
+function app_end_of_evalulation().  It is passed the generation
+number, a pointer to the entire population, statistics for the run and
+generation, and a flag indicating whether a new best-of-run individual
+has been found or not.  It should return a 1 or 0, indicating whether
+the user termination criterion has been met and the run should stop.
+
+Suppose the that the function is declared with the following argument
+names:
+
+int app_end_of_evaluation ( int gen, multipop *mpop, int newbest,
+                    popstats *gen_stats, popstats *run_stats )
+
+The population is passed as the pointer to a structure of type
+(multipop *).  Everything within this structure should be treated as
+read-only.  This table gives some useful items of information stored
+in this structure:
+
+ mpop->size                          number of subpopulations
+ mpop->pop[p]->size                  size of population p
+ mpop->pop[p]->ind[i]                the i'th individual of population p
+ mpop->pop[p]->ind[i].r_fitness      raw fitness of individual
+ mpop->pop[p]->ind[i].s_fitness      standardized fitness of individual
+ mpop->pop[p]->ind[i].a_fitness      adjusted fitness of individual
+ mpop->pop[p]->ind[i].hits           hits of individual
+ mpop->pop[p]->ind[i].tr[n].data     tree n data pointer
+
+The tree data pointer(s) can be passed to evaluate_tree() to evaluate
+the tree just as in the evaluation function.  To print the entire
+individual, pass its address to print_individual() or
+pretty_print_individual().
+
+The content of the statistics structure should be discernible to the
+interested reader from the dec- laration in types.h.  gen_stats[0] is
+statistics for the whole population in the current generation, while
+gen_stats[i] gives the same just for subpopulation i.  The run_stats
+array is similar, but accumulates information over the whole run.
+
+In many problems it is useful to access the best-of-run or
+best-of-generation individual for printing or doing extra evaluations.
+For instance, the symbolic regression problem produces an extra output
+file with the best-of-run individual evaluated at 200 points over the
+interval of interest, for easy plotting.  A copy of the best-of-run
+individual is pointed to by run_stats[0].best[0]->ind, and the
+best-of-generation individual by gen_stats[0].best[0]->ind.
+
+In versions of lil-gp prior to 0.99b, it was an undocumented feature
+that by modifying the param- eter database, the breeding parameters
+could be altered dynamically during the run.  If you took advantage of
+this, you must now call rebuild_breeding_table() after modifying the
+parameters, and pass it the multipop pointer passed to you.  If you do
+not, your changes to the parameter database will have no effect.  This
+ability is now considered a bona fide feature of lil-gp, and will be
+supported in future releases.
+
+Changes to the subpopulation exchange topology parameters underwent a
+similar change.  If you change the parameters during the run, you
+should call rebuild_exchange_topology() after making changes in order
+for them to have any effect.
+
+Some kernel operations (for instance, restarting from a checkpoint
+file) imply rebuilding the breed- ing and topology tables from the
+parameter database.  You should only make changes to these parameters
+when you intend to immediately call the appropriate rebuilding
+functions, otherwise unpredictable things will occur.
+
+Another user callback app_end_of_breeding() is called after the new
+population is created each generation.  This is passed the generation
+number and the population structure, just as in the end of evaluation
+callback, but no statistics information.
+
+6.3.4 Application Initialization
+
+There are two functions provided for application-specific
+initialization: app_initialize() and app_uninitialize().
+app_initialize() is passed an integer flag indicating whether the run
+is starting from a checkpoint or not.  It should return 0 to indicate
+success, or anything to abort the run.
+
+Initialization such as memory allocation and reading parameters should
+go in app_initialize().  The last function is called at the end of the
+run, and may used to do things like free memory.
+
+6.3.5 Output Streams
+
+an output stream is a simple abstraction of an output file.  This
+mechanism handles both the naming of the actual file and uses the
+detail level (the output.detail parameter) to filter the output.  Some
+functions are provided for writing to output streams:
+
+oputs ( int streamid, int detail, char *string )
+       Prints the string to the given output stream, if the value of
+       detail is less than or equal to the current detail level.
+
+oprintf  (  int  streamid,  int  detail,  char  *format,  ...   )
+       Processes the format and suc- ceeding arguments as in printf(),
+       and prints the resulting string to the stream if the detail is
+       less than or equal to the current detail level.
+
+test_detail_level  (  int  detail  )
+       Returns true if the argument is less than or equal to the
+       current detail level.
+
+output_filehandle  (  int  streamid  )
+       Returns the filehandle (FILE *) for the given stream.  Useful for
+       passing to print_tree() and the like.
+
+The standard output files (.sys, .gen, etc.)  are can be printed to
+with the stream ids OUT_SYS, OUT_GEN, etc.  For instance:
+
+   oprintf ( OUT_SYS, 30, "Tree %d is:"n", tree_num );
+   if ( test_detail_level ( 30 ) )
+      print_tree ( tree[tree_num], output_filehandle ( OUT_SYS ) );
+
+an application can define custom output streams (for instance, the .fn
+output file of the regression problem).  This is done in the
+application function app_create_output_streams().  This function
+should be used only to create user output streams.  In it, you call
+create_output_stream() with five arguments:
+
+id   The id for the stream (an integer).  User-defined output streams
+        should have ids OUT_USER, OUT_USER+1, etc.
+
+ext   The extension for the filename.  This string is appended to a
+        basename (the parameter output.basename) to create the
+        filename).
+
+reset   A flag indicating whether the stream can be closed and reopened
+        (using the functions output_stream_close() and
+        output_stream_open()).  Reopening a stream overwrites the old
+        file (like the .bst file).
+
+mode   The mode string to pass to fopen() when opening the file.
+Typically will be "w" or "wb".
+
+autoflush   Flag indicating whether the file should be flushed after
+        each call to oputs() and oprintf().
+
+app_create_output_streams() is called before any parameters have been
+loaded, so you should not attempt to read the parameter database in
+this function.
+
+6.3.6 Checkpoint Files
+
+Two functions are provided for saving user state to checkpoint files,
+app_write_checkpoint() and app_read_checkpoint().  Each is passed a
+file handle (FILE *) opened in text mode for writing or reading,
+respectively.  Each function should leave the file pointer at the end
+of the user section.
+
+6.4 Order of Processing
+
+Here is the order things happen in during a run.
+
+  print startup message
+  initialize parameter database
+  initialize ERCs
+  initialize generation space
+  app_create_output_streams()
+  initialize output streams
+  pre_parameter_defaults()
+  process command-line arguments in order, possibly including loading of checkpoint file
+  if not starting from checkpoint, post_parameter_defaults()
+  open output files
+  if not already done (during loading of checkpoint), app_build_function_sets()
+  read tree node/depth limits from parameters
+  if not starting from checkpoint, seed random number generator
+  app_initialize()
+  if not starting from checkpoint, create initial random population
+  initialize subpopulation exchange topology
+  initialize breeding table
+  run the GP: until termination
+     evaluate the population, unless this is first generation after loading checkpoint
+     compute population statistics
+       app_end_of_evaluation()
+     write checkpoint file, if necessary
+     if this is not the last generation
+       do subpopulation exchange, if necessary
+       breed new population
+       app_end_of_breeding()
+  app_uninitialize()
+  free breeding table
+  free subpopulation exchange topology
+  free population
+  free parameter database
+  free ERCs
+  free generation spaces
+  free function sets
+  print system statistics
+  close output streams
+
+6.5 Kernel Considerations
+
+6.5.1 Memory Allocation
+
+lil-gp system has a system for tracking memory usage.1 This is helpful
+in tracking down mem- ory leaks, among other things.  To use it, just
+use MALLOC(), REALLOC(), and FREE() instead of malloc(), realloc(),
+and free().  The uppercased versions should work exactly like their
+low- ercased counterparts.  You may use the lowercase versions if you
+do not wish to have the memory included in the statistics, but do not
+mix pointers returned by the two different sets of functions.  Don't
+FREE memory that you've malloc'ed, etc.
+
+6.5.2 Using Parameters
+
+User code may read and write the parameter database, using the
+functions get_parameter() and add_parameter().  The implementation of
+the database is not terribly efficient,2 so you shouldn't, for
+instance, read a parameter inside the code for a function or terminal.
+Reading a given parameter once per generation should be considered a
+maximum.  If you need the value more often than that, you should
+buffer it in a C variable.
+
+get_parameter() takes the name of the parameter (the string) and
+returns a character pointer to its value, or NULL if the parameter is
+not present in the database.  You should not modify the string
+returned; make a copy if you need to use it in a destructive manner.
+add_parameter() takes the parameter name, value, and a flag indicating
+whether the name or the value should be copied, or both.  Adding a
+parameter that is already present overwrites the old value.
+
+1     It can be disabled completely by removing or commenting out the line
+      "#define TRACK_MEMORY" from protos.h.
+
+2     Read "linear search."
+
+Chapter 7
+Extending the Kernel
+
+Internally, lil-gp is fairly simple.  I have attempted to keep the
+structure reasonably clean and modular, without going too overboard
+about avoiding global variables and such.  24 C files comprise the
+kernel:
+
+main.c 	Initialization and cleanup.
+
+gp.c	The main evaluate-and-breed cycle, and population statistics
+calculation.
+
+eval.c 	The tree evaluator.
+
+tree.c	Utility routines dealing with trees_counting nodes and depth,
+        printing, generating random trees, finding subtrees, copying
+        trees.
+
+change.c 	Breeding of the new population each generation.
+
+crossovr.c	The crossover operator.
+
+reproduc.c	The reproduction operator.
+
+mutate.c	The mutation operator.
+
+select.c	Utility routines for selection methods.
+
+tournmnt.c	The tournament selection method.
+
+bstworst.c	The best, worst, and random selection methods.
+
+fitness.c	The fitness, fitness_overselect, and inverse_fitness
+selection methods.
+
+genspace.c 	Utility routines for allocating space to grow new trees in.
+
+exch.c		The subpopulation exchange system.
+
+populate.c	Utility routines for populations_copying, freeing, random
+generation.
+
+ephem.c 	Utility routines for ephemeral random constants.
+
+ckpoint.c	 Reading and writing checkpoint files.
+
+event.c		 System-dependent module for tracking execution time.
+
+pretty.c	 The tree pretty-printer.
+
+individ.c	 Utility routines for whole individuals_printing and
+calculating size.
+
+params.c    The parameter database.
+
+random.c    The portable pseudorandom number generator, adapted from
+        Numerical Recipes in FORTRAN.
+
+memory.c	  The implementations of MALLOC(), FREE(), and REALLOC() that
+track memory usage.
+
+output.c     The output subsystem (oprintf() and oputs(), among others).
+
+7.1 Tree Representation
+
+A tree is stored as an array of type lnode.  An lnode is a union which
+can can a pointer to a function structure, a pointer to an ephemeral
+random constant (ERC) structure, or an integer.  The tree is stored in
+prefix order.  The first lnode is always a pointer to a function.  If
+the function is an ERC terminal, then the next lnode in the array has
+the pointer to the ERC structure.  If a function is of type EXPR (the
+user code controls evaluation of the function's arguments) then there
+is an extra lnode just before the start of each child_it contains an
+integer, the number of lnodes used in representing the child subtree.
+The evaluation code uses this value to skip the child during
+evaluation.
+
+Consider this expression in the symbolic regression problem:
+
+(+ X (iflte X (* .34 X) .56))
+
+This would be represented in lil-gp as the array:
+
+  +        | pointer to structure for function +
+  X        | pointer to structure for function X
+  iflte    | pointer to structure for function iflte
+  1        | first argument to iflte takes 1 lnode to store
+  X        |
+  4        | second argument to iflte takes 4 lnodes to store
+  *        | pointer to structure for function *
+  R        | pointer to structure for ERC function
+  .34      | pointer to structure containing ERC value
+  X        |
+  2        | third argument to iflte takes 2 lnodes to store
+  R        |
+  .56      |
+
+This representation, while it may seem cumbersome, has two major
+advantages over a more tradi- tional C representation (with individual
+structs for each node, linked by pointers).  First, it uses much less
+memory_approximately 1-2 words per node versus the 4-5 it would take
+otherwise.  This is because the structure of the tree is represented
+implicitly in the ordering of the nodes rather than explicitly via
+pointers.  Second, it results in much faster tree evaluation.  For
+instance, consider the crossover operator.  In the traditional
+representation crossover is performed by just swapping two pointers.
+While this is very fast and easy, over time it means that the nodes of
+a given tree become spread out over the process's address space.  On a
+system with virtual memory, this slows evaluation (or any traversal of
+the tree) to a crawl as the tree is spread across dozens of pages
+which must constantly be swapped in and out.  lil-gp's representation
+complicates crossover somewhat, but leaves each offspring tree as a
+single continuous block of memory, able to fit on just one or two
+pages.
+
+7.2 Selection Methods
+
+A selection method is implemented with two functions: one to perform
+initialization and cleanup, and another to do the actual selection.
+The first function, when called for initialization, creates and
+returns a data structure called a selection context.  This contains
+any state information needed for the selection method.  It should also
+store a pointer to the population that the selection is being done on.
+This structure will be passed to the second function, which should
+return an index of an individual within the population.
+
+To create a new selection method, it is suggested that you copy and
+modify an existing one (the random method in bstworst.c is an
+especially simple one).  If your of selection can be expressed as
+randomly selecting an individual from a set where each individual has
+a fixed probability of selection, then there is already an efficient
+implementation of the second function.  See the code for the fitness,
+fitness_overselect, and inverse_fitness methods for examples.
+
+Finally, you must add a record describing your selection method to the
+array select_method_table at the top of select.c.  This lists the
+names and initialization functions of each selection method available.
+
+7.3 Operators
+
+The breeding of the population is controlled by a table of breeding
+phases.  This is built from the parameter database at the start of the
+run (and whenever rebuild_breeding_table() is called from user code.
+Each subpopulation has its own breeding table.  For each phase, there
+is a record in the table.  Each record has pointers to the four
+methods for the operator, the rate for that phase, and a pointer to an
+operator-specific structure.
+
+To implement a new operator, it is suggested that you copy and modify
+the code of an existing operator.  The reproduction operator is the
+simplest of the three included.  Suppose that your new operator is
+called "foo".  You would need to provide five functions (the following
+naming scheme is strongly recommended):
+
+operator_foo_init  Parses the operator's options string and builds the
+        operator table entry.  The kernel functions parse_o_rama() and
+        free_o_rama() are available to parse the options string just
+        like the built-in operators do.
+
+operator_foo_free   Frees the operator-specific part of the operator
+table entry.
+
+operator_foo_start   This is called at the start of breeding.  Selection
+        methods should be initialized here.
+
+operator_foo_end   This is called at the end of breeding.  Selection
+contexts should be freed here.
+
+operator_foo   This performs the actual operation.
+
+You then add a record to the array operator_table at the top of
+change.c, listing the name of the operator (a string) and the
+operator's initialization method (a function pointer), for example,
+after adding the foo operator the table would look like:
+
+operator operator_table[] =
+{ { "crossover",     operator_crossover_init },
+  { "reproduction",  operator_reproduce_init },
+  { "mutation",      operator_mutate_init },
+  { "foo",           operator_foo_init },
+  { NULL, NULL } };
+
+The next field of the new population structure gives the index at
+which the operator should place the new individual.  After adding an
+individual, increment the next field.  If your operator produces
+multiple offspring with a single call then you must make sure that you
+don't overfill the population (the next field should not exceed the
+size field).  The crossover operator, for instance, normally produces
+two offspring on each call.  If it is called when there is only one
+more space in the population, it fills the space and throws the other
+offspring away.
+
+Your operator should always add at least one individual to the new
+population per call.  If it does not, infinite loops may occur when
+the probabilistic_operators parameter is off.
+
+7.4 Miscellany
+
+This section gives a general overview of how some of the nonobvious
+parts of lil-gp work and how they fit together.
+
+7.4.1 Tree Generation Spaces
+
+When building a new tree, lilgp needs a continuous block of memory to
+put the tree in, but can't allocate the final location of the tree
+because the size isn't known ahead of time.  Therefore, special blocks
+of memory are allocated to grow the trees in.  Every time an lnode is
+added to a tree-in- progress, the function gensp_next (or
+gensp_next_int) is called to enlarge the memory block if needed.  Once
+the tree is finished and its size is known, its final location is
+allocated and the tree is copied from the generation space.
+
+Currently there are two generation spaces needed.  If you are
+implementing an operator or some- thing that requires three or more
+trees to be grown simultaneously, increase GENSPACE_COUNT in
+defines.h.
+
+Generation spaces are initially allocated to hold GENSPACE_START
+lnodes, and grow in steps of GENSPACE_GROW lnodes.  These constants
+are in defines.h.
+
+7.4.2 Saved Individuals
+
+lilgp tracks the best n individuals of each population, where n is a
+user-settable parameter.  Pointers to these best individuals are
+passed to the user function app_end_of_evaluation().  To ensure that
+these pointers are always good, the kernel makes a copy of each
+individual in the top n and passes the address of the copy (since the
+original individual may not survive the breeding process).
+
+An individual can be referenced in multiple top-n lists (best-of-gen,
+best-of-run, etc.).  To avoid making multiple copies, a reference
+count is kept for each individual.  All these saved individuals are
+kept in a linked list, and once per generation a garbage collection
+procedure traverses the list and frees any individuals which have no
+references to them.
+
+7.4.3 Ephemeral Random Constants
+
+Whenever a new ephemeral random constant terminal is inserted into a
+tree (during the generation of the initial population, or during
+mutation operations) the function new_ephemeral_const() is called to
+create the constant.  It calls the user-supplied generation function
+to create a new value.  Each ERC record stores the value, along with a
+reference count of how many tree nodes point to that value.  The ERC
+records are maintained in a linked list.  Once per generation, a
+garbage collection routine traverses the linked list and removes any
+ERCs which are no longer needed (that have a reference count of zero).
+
+The ERC records are not allocated individually but in large blocks.
+This ensures that all the ERCs are kept on a few memory pages at most,
+which reduces the need for paging during evaluation (when there are
+many scattered references to the ERCs).  When an ERC is freed by the
+garbage collection routine, it is added to the end of the free list.
+If the free list ever becomes empty, a new large block of ERC records
+is allocated and all of them added on to the end of the free list.
+
+Pointers to the blocks themselves are kept in an array so that the
+blocks can be freed at the conclusion of the run.  Since the number of
+blocks can increase, this array is reallocated as necessary.
+
+Bibliography
+
+[1]  David E.  Goldberg.  Genetic Algorithms in Search, Optimization
+     and Machine Learning.  Addison-Wesley, 1989.
+
+[2]  John H. Holland.  Adaptation in Natural and Artifical Systems.
+     Bradford/MIT Press, 1992.
+
+[3]  John R. Koza.  Genetic Programming.  Bradford/MIT Press, 1992.
+
+[4]  John R. Koza.  Genetic Programming II.  Bradford/MIT Press, 1994.

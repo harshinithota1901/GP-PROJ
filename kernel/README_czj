@@ -1,0 +1,93 @@
+czj info:
+
+acgp-lil-gp 1.1.2/1.02 does
+
+  Changes cgp-lil-gp 1.1/1.02  as follow:
+  - added mechanisms to print pop distribution and weights
+    (files .cnt and .wgt)
+  - added mechanisms to update the weights based on the
+    distributions
+    - weights can be updated at intervals, and the population
+      can stay same or can be regrown anew
+  - can process distribution for independent runs
+    - uses multiple populations mechanism of lilgp1.02
+  - sort fset on arity decreasing secondary on name increasing
+  - operators:
+    crossover
+    mutate
+    uniMutate
+    regrow
+
+  Changes acgp-lil-gp 1.1/1.02 as follow:
+  - tree node has an extra expressed field
+  - every evaluation sets this field on every expressed node as (counting)
+  - distributions are processed 
+    - as before
+    - using only expressed subtrees
+    - using only expressed subtrees proportional to counters
+  - then counters are reset for the next generation
+
+  Change from acgp1.1.1:
+       initialization and mutation/uniform mutation modified to 
+       never generate trees (if possible due to constraints) shorher than the
+       min depth ramp (NOTE: only if the corresponding parameter depth_abs
+       is set to true)
+
+  NOTE: at present, to regrow the population one must place
+  the new operator "regrow" as the very last entry in the 
+  list of operators in the param file (last breed phase)
+  with very low probability unless you want it used during regular breeding
+  as well. This should be made more transparent later on.
+  
+ACGP parameters:
+/*   acgp.use_trees_prct (0..1]                                  */
+/*     the effective rate for distribution sampling              */
+/*     that is this prct of all trees (all pops) will be taken   */
+/*   acgp.select_all  [0,1]                                      */
+/*     1 - extract acgp.use_trees_prct best (after sort) out of  */
+/*         each population then take them all for sampling       */
+/*     0 - extract sqrt(acgp.use_trees_prct) best of each pop    */
+/*         then resort and take again sqrt(acgp.use_trees_prct)  */
+/*         resulting in acgp.use_trees_prct effective rate       */
+/*   acgp.extract_quality_prct [0..1]                            */
+/*     two trees with fitness diff by no more than               */
+/*     (1-acgp.extract_quality_prct) is considered same fitness  */
+/*     and thus compared on size                                 */
+/*   acgp.gen_start_prct [0..1]                                  */
+/*     start extracting at gen=acgp.gen_start_prct*MaxGen        */
+/*   acgp.gen_step [1..MaxGen]                                   */
+/*     after starting extracting, extract at this gen interval   */
+/*   acgp.gen_slope [0,1]                                        */
+/*     0 - use extracted heuristics to update and the rate of    */
+/*         change is constant at                                 */
+/*         sqrt(1/numIterations) if acgp.gen_slope_prct==0       */
+/*         else at acgp.gen_slope_prct                           */
+/*         note that acgp.gen_slope==0 and acgp.gen_slope_prct=1 */
+/*         give greedy 100% change of the heuristics             */
+/*     1 - use extracted heuristics to update old heuristics     */
+/*         and the rate of change increases with iter#           */
+/*   acgp.gen_slope_prct [0..1]                                  */
+/*     see above                                                 */
+/*   acgp.0_threshold_prct [0..1]                                */
+/*     if a weight drops to weight such that weight/mutSetSize   */
+/*     less than acgp.threshold_prct, then drop weight to 0      */
+/*   acgp.what [0,1,2,3]                                         */
+/*     0 - CGP run, no adjustments, no *.cnt/.wgt file           */
+/*     1 - CGP, but also compute distribution *.cnt/*.wgt files  */
+/*     2 - ACGP run, extract and adjust heuristics on this run   */
+/*     3 - as 2, but after adjusting heuristics, regrow all pops */
+/*   acgp.stop_on_term [0,1]                                     */
+/*     0 - continue all generation even on solving (term met)    */
+/*     1 - stop generation upon solving                          */
+/*   acgp.use_expressed [0,1,2]                                  */
+/*     0 - collect distribution from all lnodes in a tree        */
+/*     1 - skip over subtress that are not expressed             */
+/*     2 - as 0, but use weight proportional to the number of    */
+/*         times the node is expressed (and thus skip w/0)       */
+
+
+
+
+(c) 2004 Cezary Z. Janikow
+    janikow@umsl.edu
+    http://www/cs/umsl/edu/~janikow/CGP

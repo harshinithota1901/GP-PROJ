@@ -1,0 +1,41 @@
+#!/opt/bin/perl
+# you will need to change the above line to reflect the location of
+# your perl executable.
+#
+# usage: splitstt <filename>
+#
+# produces output files named:
+#      <filename>.pop0    -- the whole population
+#      <filename>.pop1    -- subpop 1
+#          etc.
+#
+
+$filename = shift;
+@fh = ();
+
+open ( IN, $filename ) || die "can't open $filename; $!; stopped ";
+
+while(<IN>)
+{
+     ($which) = /^\d+ (\d+) /;
+     if ( defined($fh[$which]) )
+     {
+          select($fh[$which]);
+          print;
+     }
+     else
+     {
+          $fh[$which] = "HAND$which";
+          open ( $fh[$which], ">$filename.pop$which" ) ||
+               die "can't open $filename.pop$which; $!; stopped ";
+          select($fh[$which]);
+          print;
+     }
+}
+
+close IN;
+foreach $handle (@fh)
+{
+     close $handle;
+}
+
